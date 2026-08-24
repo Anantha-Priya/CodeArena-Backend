@@ -122,21 +122,55 @@ ContestParticipantRepository, SubmissionRepository).
 ---
 
 ## Phase 5: Security Layer (Spring Security + JWT)
-- [ ] Done
+- [x] Done
 
-**Carried over from Phase 1 (fix as part of this phase, not just the guide's own scope):**
-- Replace the temporary permit-all `SecurityConfig` with the real rule set: public
-  `/api/auth/**`, `/api/health`, Swagger paths; everything else authenticated.
-- Remove the hardcoded `root@123` DB password fallback from `application.properties` —
-  move real local credentials to a gitignored `application-local.properties`
-  (`spring.profiles.active=local`), commit an `application-local.properties.example`
-  template instead.
+**Carried over from Phase 1 — both rectified:**
+- Real `SecurityConfig` replaces the permit-all placeholder: public `/api/auth/**`,
+  `/api/health`, Swagger paths; everything else authenticated; admin-only write access on
+  problems/contests. ✅
+- `application.properties` no longer has any DB credential in it — real local credentials
+  moved to gitignored [application-local.properties](src/main/resources/application-local.properties)
+  (`spring.profiles.active=local`), with a tracked
+  [application-local.properties.example](src/main/resources/application-local.properties.example)
+  template for anyone else cloning the repo. ✅
 
 **Built:**
+- [JwtService.java](src/main/java/com/codearena/security/JwtService.java) — generates/validates
+  HS256 tokens (`jjwt` 0.12.6), 24h expiry, secret from `jwt.secret` in `application.properties`
+  (a placeholder value per the guide — safe to commit, unlike the DB password).
+- [CustomUserDetailsService.java](src/main/java/com/codearena/security/CustomUserDetailsService.java) —
+  loads a `User` by email (login is by email, see `LoginRequest`) via `UserRepository`.
+- [JwtAuthenticationFilter.java](src/main/java/com/codearena/security/JwtAuthenticationFilter.java) —
+  `OncePerRequestFilter`; reads `Authorization: Bearer <token>`, validates it, sets the
+  `SecurityContext`. Malformed/expired tokens are caught and treated as "no auth" rather than
+  bubbling up as a 500.
+- [SecurityConfig.java](src/main/java/com/codearena/security/SecurityConfig.java) — stateless
+  sessions, BCrypt `PasswordEncoder`, `DaoAuthenticationProvider`, explicit `401` entry point
+  (Spring Security's undeclared fallback is 403, which fails the guide's own verify step),
+  and the authorization rules: public paths, `POST/PUT/DELETE /api/problems/**` and
+  `POST/PUT /api/contests/**` admin-only, `POST /api/contests/*/join` any authenticated user
+  (carved out ahead of the general contests admin rule — Phase 10's join endpoint is a regular
+  user action, not admin management), everything else authenticated.
+- Tests: [JwtServiceTest.java](src/test/java/com/codearena/security/JwtServiceTest.java) (unit —
+  generate/validate round trip, rejects a token issued to someone else) and
+  [JwtAuthenticationIntegrationTest.java](src/test/java/com/codearena/security/JwtAuthenticationIntegrationTest.java)
+  (`@SpringBootTest` + MockMvc — no token → 401; a real user's valid token passes the security
+  chain and reaches Spring MVC's dispatcher, which 404s since no controller is mapped to that
+  path yet). Both pass; the integration test's inserted user rolls back via `@Transactional`
+  (verified 0 rows in `users` after the run).
 
 **Decisions/deviations:**
+- The guide's own verify checklist item "a token from a later login unlocks it" can't be
+  tested literally yet — `/api/auth/login` doesn't exist until Phase 6. Verified the
+  equivalent instead: a token minted the same way `JwtService` will mint it for a real DB
+  user passes the full filter chain. Full end-to-end (real `POST /api/auth/login` response
+  token) gets exercised in Phase 6.
+- Hit and fixed one real bug while verifying: Spring Security's undeclared fallback for an
+  unauthenticated request is `403 Forbidden`, not `401` — added an explicit
+  `HttpStatusEntryPoint(UNAUTHORIZED)` so the guide's verify step actually holds.
 
-**Next:**
+**Next:** Phase 6 — register/login endpoints (AuthController, AuthService) using the
+security pieces built here.
 
 ---
 
