@@ -90,13 +90,34 @@ ContestParticipantRepository, SubmissionRepository).
 ---
 
 ## Phase 4: DTOs & Validation
-- [ ] Done
+- [x] Done
 
 **Built:**
+- Request DTOs under `com.codearena.dto`: [RegisterRequest.java](src/main/java/com/codearena/dto/RegisterRequest.java)
+  (`@NotBlank` username, `@Email` email, `@Size(min=6)` password), [LoginRequest.java](src/main/java/com/codearena/dto/LoginRequest.java),
+  [ProblemRequest.java](src/main/java/com/codearena/dto/ProblemRequest.java), [ContestRequest.java](src/main/java/com/codearena/dto/ContestRequest.java),
+  [SubmissionRequest.java](src/main/java/com/codearena/dto/SubmissionRequest.java).
+- Response DTOs: [AuthResponse.java](src/main/java/com/codearena/dto/AuthResponse.java) (token),
+  [UserProfileResponse.java](src/main/java/com/codearena/dto/UserProfileResponse.java)
+  (username, rating, problemsSolved, contestsJoined),
+  [LeaderboardEntryResponse.java](src/main/java/com/codearena/dto/LeaderboardEntryResponse.java) (rank, username, score).
+- Custom cross-field validation: [EndTimeAfterStartTime.java](src/main/java/com/codearena/dto/EndTimeAfterStartTime.java)
+  (class-level constraint annotation) + [EndTimeAfterStartTimeValidator.java](src/main/java/com/codearena/dto/EndTimeAfterStartTimeValidator.java),
+  applied to `ContestRequest` so `end_time` must be after `start_time`.
+- Verified: app boots clean with the new DTOs and the custom validator on the classpath — no
+  bean-validation wiring errors.
 
 **Decisions/deviations:**
+- `SubmissionRequest` includes a `status` field the caller supplies directly. Per CLAUDE.md, v1
+  doesn't execute submitted code — there's no judge to derive ACCEPTED/WRONG_ANSWER/etc., so the
+  guide's own scoring model (Phase 11: score depends on `status`) only works if the request
+  carries it.
+- Only the DTOs the guide's Phase 4 prompt names were built. Response DTOs for returning
+  Problem/Contest/Submission data (needed once Phases 8/9/11 add GET endpoints, per the
+  "entities never returned directly" rule) are intentionally deferred to those phases, where
+  the exact response shape will be driven by what each endpoint actually needs.
 
-**Next:**
+**Next:** Phase 5 — Spring Security + JWT (also fixes the two carried-over Phase 1 items above).
 
 ---
 
