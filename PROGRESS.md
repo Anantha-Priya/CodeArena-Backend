@@ -175,13 +175,47 @@ security pieces built here.
 ---
 
 ## Phase 6: Authentication Module
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [AuthController.java](src/main/java/com/codearena/controller/AuthController.java) —
+  `POST /api/auth/register` (201, no body), `POST /api/auth/login` (200, `AuthResponse`).
+- [AuthService.java](src/main/java/com/codearena/service/AuthService.java) — register checks
+  `existsByUsername`/`existsByEmail` before saving (BCrypt-hashed password, role `USER`); login
+  goes through the real `AuthenticationManager` (→ `DaoAuthenticationProvider` →
+  `CustomUserDetailsService` + `PasswordEncoder`, all from Phase 5) exactly as the guide's
+  Phase 5 flow describes, then `JwtService` mints the token.
+- Minimal exception handling to make 409/401 actually work now: [DuplicateResourceException.java](src/main/java/com/codearena/exception/DuplicateResourceException.java),
+  [UnauthorizedException.java](src/main/java/com/codearena/exception/UnauthorizedException.java),
+  [ErrorResponse.java](src/main/java/com/codearena/exception/ErrorResponse.java) (`{"status":.., "message":..}`,
+  the exact shape Phase 7 specs), [GlobalExceptionHandler.java](src/main/java/com/codearena/exception/GlobalExceptionHandler.java)
+  (`@RestControllerAdvice`, only these two exceptions for now).
+- Verified live end-to-end with curl: register → 201; login → 200 + real JWT; that JWT on a
+  protected path → 404 (not 401 — proves it passed the full security chain, since no
+  controller exists at that path yet); no token → 401; wrong password → 401; nonexistent
+  email → 401 (same message as wrong password, no user-enumeration leak); duplicate username
+  → 409; duplicate email → 409. This also closes out the Phase 5 verify item that couldn't be
+  tested literally back then ("a token from a later login unlocks it").
+- Full `mvnw test` suite still green after these changes (4 tests total).
 
 **Decisions/deviations:**
+- Found and fixed a real bug while verifying live (not caught by the Phase 5 MockMvc test,
+  which doesn't reproduce it): a valid, correctly-authenticated request to a path with no
+  controller was returning **401** instead of 404. Root cause — Spring Boot internally
+  forwards unmapped requests to `/error`, and that forward re-enters the security filter
+  chain as a *new*, anonymous request; since `/error` wasn't in the public path list, it got
+  rejected by `anyRequest().authenticated()`, masking the real 404 with a misleading 401.
+  Fixed by adding `/error` to `SecurityConfig`'s public paths (the standard Spring
+  Boot + Spring Security fix for this).
+- Register returns 201 with no body — the guide only specifies "return 201," and no
+  `UserResponse` DTO was defined in Phase 4 for this, so no response shape was invented.
+- Built only the two exceptions Phase 6 actually throws. `ResourceNotFoundException`,
+  `BadRequestException`, and `@Valid`/`MethodArgumentNotValidException` handling are still
+  Phase 7's job.
 
-**Next:**
+**Next:** Phase 7 — expand `GlobalExceptionHandler` with the rest of the guide's exception
+mapping (`ResourceNotFoundException` → 404, `BadRequestException` → 400,
+`MethodArgumentNotValidException` → 400 with field errors).
 
 ---
 

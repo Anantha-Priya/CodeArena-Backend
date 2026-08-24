@@ -26,7 +26,11 @@ public class SecurityConfig {
         "/api/health",
         "/swagger-ui/**",
         "/swagger-ui.html",
-        "/v3/api-docs/**"
+        "/v3/api-docs/**",
+        // Spring Boot forwards unmapped/erroring requests here internally as a fresh
+        // (anonymous) request - without this, that forward gets rejected by
+        // anyRequest().authenticated() and masks the real status with a 401.
+        "/error"
     };
 
     private final CustomUserDetailsService userDetailsService;
