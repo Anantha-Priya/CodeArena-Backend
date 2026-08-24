@@ -220,13 +220,41 @@ mapping (`ResourceNotFoundException` → 404, `BadRequestException` → 400,
 ---
 
 ## Phase 7: Global Exception Handling
-- [ ] Done
+- [x] Done
 
 **Built:**
+- New exceptions: [ResourceNotFoundException.java](src/main/java/com/codearena/exception/ResourceNotFoundException.java) (404),
+  [BadRequestException.java](src/main/java/com/codearena/exception/BadRequestException.java) (400).
+- [GlobalExceptionHandler.java](src/main/java/com/codearena/exception/GlobalExceptionHandler.java)
+  expanded with all five guide mappings, plus `MethodArgumentNotValidException` → 400, joining
+  every field error (and class-level errors like `EndTimeAfterStartTime`) into one `message`
+  string as `"field: reason; field: reason"`, since the response shape is a flat
+  `{"status","message"}` pair, not a field-map.
+- [RestAuthenticationEntryPoint.java](src/main/java/com/codearena/security/RestAuthenticationEntryPoint.java)
+  and [RestAccessDeniedHandler.java](src/main/java/com/codearena/security/RestAccessDeniedHandler.java) —
+  replace the bare `HttpStatusEntryPoint` from Phase 5 so 401 (no/bad token) and 403
+  (authenticated but wrong role) also return the same `{"status","message"}` JSON body.
+  These live in `security/`, not `exception/`, because Spring Security rejects those requests
+  at the filter level, before `@RestControllerAdvice` ever sees them.
+- Tests: [GlobalExceptionHandlerTest.java](src/test/java/com/codearena/exception/GlobalExceptionHandlerTest.java)
+  (each handler → correct status + body) and [ContestRequestValidationTest.java](src/test/java/com/codearena/dto/ContestRequestValidationTest.java)
+  (exercises `EndTimeAfterStartTime` directly via `Validator`, since no controller uses
+  `ContestRequest` yet — that's Phase 9). 10 tests total, all green.
+- Verified live: blank username + malformed email on register → 400 with both field errors
+  joined in one message; no token on a protected path → 401 JSON body (previously empty);
+  non-admin token on an admin-only endpoint → 403 JSON body (previously Spring's default);
+  existing 404/409 paths and `/api/health` unaffected.
 
 **Decisions/deviations:**
+- Interpreted "UnauthorizedException → 401/403 as appropriate" as: `UnauthorizedException`
+  itself stays 401 (bad/missing credentials, thrown by `AuthService`), and Spring Security's
+  own `AccessDeniedException` (insufficient role) gets its own handler mapped to 403 — same
+  response shape, different mechanism, since one is an app-level exception and the other is a
+  security-filter-level rejection that `@RestControllerAdvice` can't intercept.
 
-**Next:**
+**Next:** Phase 8 — Problem Management module (CRUD + search/filter/pagination), the first
+real use of `ProblemRepository`'s `JpaSpecificationExecutor` from Phase 3 and `ProblemRequest`
+from Phase 4.
 
 ---
 
