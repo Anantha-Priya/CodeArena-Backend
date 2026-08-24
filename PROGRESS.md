@@ -25,8 +25,8 @@ Check a phase off when its verify checklist passes and the commit is made.
   password, which fails the phase's own verify step. This file gets fully replaced in Phase 5.
 - DB credentials: `spring.datasource.username`/`password` read from `DB_USERNAME`/`DB_PASSWORD`
   env vars, falling back to `root`/`root@123` (the local dev MySQL80 instance) for convenience.
-  **Before this repo goes public (Phase 14), replace the password fallback** — a real root
-  password shouldn't sit in git history even for a local-only project.
+  **To be rectified in Phase 5** — a real root password shouldn't sit in git history even for
+  a local-only project.
 - Local Maven 3.9.16 install found at `C:\Users\IceMu\.m2\wrapper\dists\...` was reused to
   generate the wrapper — no need to install Maven system-wide.
 
@@ -70,6 +70,14 @@ ContestParticipant, Submission).
 
 ## Phase 5: Security Layer (Spring Security + JWT)
 - [ ] Done
+
+**Carried over from Phase 1 (fix as part of this phase, not just the guide's own scope):**
+- Replace the temporary permit-all `SecurityConfig` with the real rule set: public
+  `/api/auth/**`, `/api/health`, Swagger paths; everything else authenticated.
+- Remove the hardcoded `root@123` DB password fallback from `application.properties` —
+  move real local credentials to a gitignored `application-local.properties`
+  (`spring.profiles.active=local`), commit an `application-local.properties.example`
+  template instead.
 
 **Built:**
 
