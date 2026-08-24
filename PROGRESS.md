@@ -63,13 +63,29 @@ ContestParticipantRepository, SubmissionRepository).
 ---
 
 ## Phase 3: Repository Layer
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [UserRepository.java](src/main/java/com/codearena/repository/UserRepository.java) —
+  `findByUsername`, `findByEmail`, `existsByUsername`, `existsByEmail`.
+- [ProblemRepository.java](src/main/java/com/codearena/repository/ProblemRepository.java) —
+  `JpaRepository` (gives paginated `findAll(Pageable)` for free) + `JpaSpecificationExecutor`.
+- [ContestRepository.java](src/main/java/com/codearena/repository/ContestRepository.java) —
+  standard CRUD, no extra methods.
+- [ContestParticipantRepository.java](src/main/java/com/codearena/repository/ContestParticipantRepository.java) —
+  `existsByUserIdAndContestId`, `findByContestId`.
+- [SubmissionRepository.java](src/main/java/com/codearena/repository/SubmissionRepository.java) —
+  `findByUserId`, `findByContestIdAndStatus`, `findByUserIdOrderBySubmittedAtDesc`.
+- Verified: app boots with "Found 5 JPA repository interfaces" and no query-derivation errors.
 
 **Decisions/deviations:**
+- `ProblemRepository` uses `JpaSpecificationExecutor` instead of separate `findByDifficulty`/
+  `findByTopic` derived methods — the guide explicitly offers this as an alternative. Phase 8
+  needs difficulty, topic, and pagination combined as independently-optional filters
+  (`?difficulty=&topic=&page=&size=`), which a `Specification` handles directly instead of
+  needing a derived method for every filter combination.
 
-**Next:**
+**Next:** Phase 4 — request/response DTOs with validation.
 
 ---
 
