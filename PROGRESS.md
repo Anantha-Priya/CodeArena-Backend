@@ -36,13 +36,29 @@ ContestParticipant, Submission).
 ---
 
 ## Phase 2: Entity Layer & Database Design
-- [ ] Done
+- [x] Done
 
 **Built:**
+- Six JPA entities under `com.codearena.entity`: [User.java](src/main/java/com/codearena/entity/User.java),
+  [Problem.java](src/main/java/com/codearena/entity/Problem.java), [Contest.java](src/main/java/com/codearena/entity/Contest.java),
+  [ContestProblem.java](src/main/java/com/codearena/entity/ContestProblem.java),
+  [ContestParticipant.java](src/main/java/com/codearena/entity/ContestParticipant.java),
+  [Submission.java](src/main/java/com/codearena/entity/Submission.java) — matching `@Table` names
+  `users`, `problems`, `contests`, `contest_problems`, `contest_participants`, `submissions`.
+- Three enums (`Role`, `Difficulty`, `SubmissionStatus`), stored as `EnumType.STRING`.
+- Lombok `@Getter/@Setter/@Builder` on every entity; `@ManyToOne(FetchType.LAZY)` +
+  `@JoinColumn` for all FK relationships.
+- Unique constraints: `users(username)`, `users(email)`, `contest_problems(contest_id, problem_id)`,
+  `contest_participants(user_id, contest_id)`.
+- `created_at` / `joined_at` / `submitted_at` auto-populated via Hibernate `@CreationTimestamp`.
+- Verified against MySQL directly: `SHOW TABLES`, `information_schema.KEY_COLUMN_USAGE` (all 7 FKs
+  present), `information_schema.STATISTICS` (all 4 unique constraints present) — all match the guide.
 
 **Decisions/deviations:**
+- None — built to spec as written.
 
-**Next:**
+**Next:** Phase 3 — repository interfaces (UserRepository, ProblemRepository, ContestRepository,
+ContestParticipantRepository, SubmissionRepository).
 
 ---
 
