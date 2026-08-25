@@ -259,13 +259,34 @@ from Phase 4.
 ---
 
 ## Phase 8: Problem Management Module
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [ProblemResponse.java](src/main/java/com/codearena/dto/ProblemResponse.java) — the response
+  DTO deferred from Phase 4, now that the shape is actually needed.
+- [ProblemService.java](src/main/java/com/codearena/service/ProblemService.java) — CRUD plus
+  `search(difficulty, topic, pageable)` built on `ProblemRepository`'s `JpaSpecificationExecutor`
+  from Phase 3, with both filters independently optional.
+- [ProblemController.java](src/main/java/com/codearena/controller/ProblemController.java) — thin,
+  delegates everything to the service. `POST/GET/GET-by-id/PUT/DELETE /api/problems`. No
+  SecurityConfig changes needed — Phase 5 already restricted POST/PUT/DELETE to `ROLE_ADMIN`
+  and left GET open to any authenticated user.
+- Verified live end-to-end: admin creates/updates/deletes a problem (201/200/204); a regular
+  user's token gets 403 on all three write operations; no token gets 401; GET by id 200, GET a
+  nonexistent id 404; `GET /api/problems?difficulty=EASY&page=0&size=10` returns correctly
+  filtered, paginated results (`content`, `totalElements`, `totalPages`, etc.).
+- Full `mvnw test` suite still green (10 tests, no regressions).
 
 **Decisions/deviations:**
+- No admin-creation endpoint exists (the guide doesn't specify one) — promoted a test user to
+  `ADMIN` directly via SQL for verification, the same bootstrap step any real deployment of
+  this app would need for its first admin.
+- Cleaned up leftover manual-test rows from the Phase 2 verification session (a `Test Problem`
+  / `Test Contest` pair with a `contest_problems` link) that had been blocking a delete via FK
+  — should have been removed back in Phase 2 but wasn't.
 
-**Next:**
+**Next:** Phase 9 — Contest Management module (create/view contests, associate problems,
+server-side UPCOMING/ACTIVE/ENDED state).
 
 ---
 
