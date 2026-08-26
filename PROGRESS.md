@@ -343,13 +343,35 @@ server-side UPCOMING/ACTIVE/ENDED state).
 ---
 
 ## Phase 10: Contest Participation
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [ContestParticipantService.java](src/main/java/com/codearena/service/ContestParticipantService.java) —
+  the guide's exact ordered check: authenticated (already enforced by `SecurityConfig`) →
+  contest exists (404) → contest has not ended (400, via `Contest.getStatus()` from Phase 9) →
+  not already joined (409, via `ContestParticipantRepository.existsByUserIdAndContestId` from
+  Phase 3) → save the row.
+- `POST /api/contests/{id}/join` added to [ContestController.java](src/main/java/com/codearena/controller/ContestController.java),
+  resolving the caller via `@AuthenticationPrincipal UserDetails` (username = email, per
+  `CustomUserDetailsService` from Phase 5) rather than trusting any client-supplied identity.
+- [ContestParticipantServiceTest.java](src/test/java/com/codearena/service/ContestParticipantServiceTest.java) —
+  Mockito unit tests for all four branches (not found, ended, duplicate, success) plus an
+  explicit case proving an `UPCOMING` contest is joinable (guide only forbids `ENDED`).
+- Verified live: no token → 401; join an `ACTIVE` contest → 201 and a real
+  `contest_participants` row; joining again → 409; joining an `ENDED` contest → 400; joining a
+  nonexistent contest → 404. Full `mvnw test` suite green (19 tests, no regressions).
 
 **Decisions/deviations:**
+- "Contest has not ended" maps to `BadRequestException` (400) — the guide doesn't state a
+  status code for this check, and 400 fits the existing exception vocabulary better than
+  inventing a new one for a single case.
+- UPCOMING contests are joinable, only ENDED is rejected — the guide's ordering only says
+  "contest has not ended," so pre-registering for a contest that hasn't started is allowed by
+  design, not an oversight.
 
-**Next:**
+**Next:** Phase 11 — Submission module + ScoreService (`POST /api/submissions`,
+`GET /api/submissions/my`), using `SubmissionRepository` from Phase 3 and the same
+`Contest.getStatus()` for the "contest is ACTIVE" check.
 
 ---
 
