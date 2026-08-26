@@ -44,4 +44,21 @@ public class Contest {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * Computed purely from start/end time vs. server clock, never a client-supplied "now" -
+     * shared by the status endpoint (Phase 9), contest-join timing checks (Phase 10), and
+     * submission validation (Phase 11), so it lives on the entity rather than duplicated
+     * per-service.
+     */
+    public ContestStatus getStatus() {
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(startTime)) {
+            return ContestStatus.UPCOMING;
+        } else if (now.isBefore(endTime)) {
+            return ContestStatus.ACTIVE;
+        } else {
+            return ContestStatus.ENDED;
+        }
+    }
+
 }

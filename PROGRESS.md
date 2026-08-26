@@ -291,13 +291,54 @@ server-side UPCOMING/ACTIVE/ENDED state).
 ---
 
 ## Phase 9: Contest Management Module
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [ContestResponse.java](src/main/java/com/codearena/dto/ContestResponse.java) and
+  [ContestStatusResponse.java](src/main/java/com/codearena/dto/ContestStatusResponse.java) —
+  response DTOs (Phase 9 needed both; the guide's Phase 4 list didn't include them, same
+  deferred-DTO pattern as `ProblemResponse` in Phase 8).
+- [ContestStatus.java](src/main/java/com/codearena/entity/ContestStatus.java) (`UPCOMING`/
+  `ACTIVE`/`ENDED`) and a `getStatus()` computed method added to
+  [Contest.java](src/main/java/com/codearena/entity/Contest.java) — pure function of
+  `start_time`/`end_time` vs. `LocalDateTime.now()`, never a client-supplied "now". Lives on
+  the entity (not `ContestService`) because Phase 10's join-timing check and Phase 11's
+  "contest is ACTIVE" check both need the exact same computation.
+- [ContestService.java](src/main/java/com/codearena/service/ContestService.java) — create,
+  list, get-by-id, associate a problem with a contest, and the status/remaining-seconds
+  calculation.
+- [ContestController.java](src/main/java/com/codearena/controller/ContestController.java) —
+  `POST/GET /api/contests`, `GET /api/contests/{id}`, `POST /api/contests/{contestId}/problems/{problemId}`,
+  `GET /api/contests/{id}/status`. No `SecurityConfig` changes needed — the admin-only POST
+  rules and the `/join` carve-out were already in place from Phase 5.
+- [ContestTest.java](src/test/java/com/codearena/entity/ContestTest.java) — unit tests for the
+  three state boundaries, including the exact `now == end_time` edge (guide spec: `ACTIVE` is
+  `start <= now < end`, so `now` at or past `end_time` must be `ENDED`).
+- Verified live end-to-end: non-admin blocked from contest creation (403); end-before-start
+  rejected (400, reusing the `EndTimeAfterStartTime` validator from Phase 4); contests created
+  in all three time windows report the correct status and a sane `remainingSeconds`; problem
+  association succeeds (201), a duplicate is rejected (409), a non-admin is blocked (403), and
+  both a missing contest and a missing problem 404 correctly; contest list/detail open to any
+  authenticated user. Full `mvnw test` suite green (14 tests, no regressions).
 
 **Decisions/deviations:**
+- Built `ContestProblemRepository` — Phase 3's repository list never actually included one for
+  the `ContestProblem` join entity (only `ContestParticipantRepository` was specified), but
+  Phase 9's own requirement ("`POST .../problems/{problemId}` creates a `ContestProblem` row")
+  can't be done without it. Same kind of gap-fill as `ContestConfig`'s temporary permit-all in
+  Phase 1 or `ProblemResponse` deferred to Phase 8 — a genuine hole in an earlier phase, filled
+  when the later phase that needs it actually arrives.
+- `GET /api/contests` returns a plain `List`, not paginated — the guide's Phase 9 terms don't
+  ask for pagination here (unlike Phase 8's problem list), and `ContestRepository` was
+  specified in Phase 3 as "standard CRUD" only.
+- Caught a real testing mistake during live verification, not a code bug: an early manual test
+  used UTC (`date -u`) for contest start/end times while the server's `LocalDateTime.now()`
+  runs in local (IST) time, so a contest meant to be "active" was actually computed as `ENDED`
+  — correctly, since `LocalDateTime` carries no zone info and the guide's spec compares wall-clock
+  values directly. Redid the test data using the server's local time; no code change was needed.
 
-**Next:**
+**Next:** Phase 10 — Contest Participation (`POST /api/contests/{id}/join`, using
+`ContestParticipantRepository` from Phase 3 and `Contest.getStatus()` from this phase).
 
 ---
 
