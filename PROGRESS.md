@@ -376,13 +376,44 @@ server-side UPCOMING/ACTIVE/ENDED state).
 ---
 
 ## Phase 11: Submission Module + Score Calculation
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [ScoreService.java](src/main/java/com/codearena/service/ScoreService.java) — dedicated, as
+  the guide requires: ACCEPTED scores 100/200/300 by difficulty, anything else scores 0.
+- [SubmissionResponse.java](src/main/java/com/codearena/dto/SubmissionResponse.java) — the
+  guide asks for "problem, contest, language, status, score, submittedAt"; interpreted
+  "problem"/"contest" as id+title pairs (not the full `ProblemResponse`/`ContestResponse`),
+  since a submission list doesn't need full problem descriptions.
+- [SubmissionService.java](src/main/java/com/codearena/service/SubmissionService.java) — the
+  guide's exact ordered chain: authenticated (`SecurityConfig`) → contest exists → problem
+  exists → user has joined (`ContestParticipantRepository`, Phase 3) → contest is `ACTIVE`
+  (`Contest.getStatus()`, Phase 9) → problem belongs to the contest
+  (`ContestProblemRepository`, Phase 9) → create, scored via `ScoreService`.
+  `getMySubmissions` uses `findByUserIdOrderBySubmittedAtDesc` from Phase 3.
+- [SubmissionController.java](src/main/java/com/codearena/controller/SubmissionController.java) —
+  `POST /api/submissions`, `GET /api/submissions/my`. Caller resolved from the JWT principal,
+  same pattern as Phase 10's join endpoint. No `SecurityConfig` changes needed — falls to
+  `anyRequest().authenticated()`, no admin restriction.
+- Tests: [ScoreServiceTest.java](src/test/java/com/codearena/service/ScoreServiceTest.java)
+  (all difficulty × status combinations) and
+  [SubmissionServiceTest.java](src/test/java/com/codearena/service/SubmissionServiceTest.java)
+  (Mockito — every branch of the validation chain, plus both of the guide's explicit verify
+  cases: ACCEPTED/MEDIUM → 200, WRONG_ANSWER → 0).
+- Verified live end-to-end: submit before joining → 400; problem not in the contest → 400;
+  missing contest/problem → 404 each; submit to an `UPCOMING` (not yet `ACTIVE`) contest → 400;
+  valid ACCEPTED/MEDIUM submission → 201, score 200; WRONG_ANSWER → 201, score 0;
+  `GET /api/submissions/my` returns only the caller's own submissions, newest first; no token
+  → 401. Full `mvnw test` suite green (31 tests, no regressions).
 
 **Decisions/deviations:**
+- "User has joined" and "problem belongs to the contest" failures map to `BadRequestException`
+  (400) — same reasoning as Phase 10's "contest has ended" case: the guide doesn't specify a
+  status code for these, and 400 fits the existing exception vocabulary.
 
-**Next:**
+**Next:** Phase 12 — Leaderboard, profile & rating (`GET /api/contests/{id}/leaderboard`,
+`GET /api/users/me`), built on `SubmissionRepository.findByContestIdAndStatus` from Phase 3
+and the participant/submission data this phase now produces.
 
 ---
 
