@@ -524,10 +524,31 @@ bullets). No more code phases after this one.
 ---
 
 ## Phase 14: Git Hygiene & Resume Polish
-- [ ] Done
+- [x] Done
 
 **Built:**
+- Verified commit history: one meaningful commit per phase (`git log --oneline`), no
+  "final"/"final2"/"updated" junk commits — this was already true throughout, since PROGRESS.md's
+  own workflow rule (commit at the end of each phase) was followed every phase.
+- [README.md](README.md) — what CodeArena does and its v1 scope (no code execution), tech
+  stack, a Mermaid architecture diagram (Controller → Service → Repository → JPA → MySQL, with
+  the JWT filter sitting in front of every request), package structure, setup instructions
+  (including the `application-local.properties.example` → `application-local.properties` step
+  from Phase 5), a full 14-endpoint API reference table grouped exactly like the Swagger tags,
+  a "business rules worth knowing about" section (state computation, the submission validation
+  chain, scoring, the idempotent rating bump, no-user-enumeration on login), a "What I'd do at
+  scale" section (real code-execution engine, Redis caching, React frontend, plus a few smaller
+  production gaps: rate limiting, refresh tokens, pagination on the two unpaginated list
+  endpoints, audit logging), and a Highlights section using the guide's own resume-bullet text.
+- Resume bullets (from the guide, ready to lift) also given directly to the user in chat, not
+  just embedded in the README.
 
 **Decisions/deviations:**
+- Left `CodeArena_Frontend_Build_Guide.md` out of the README entirely rather than referencing
+  it as a "planned companion guide" — flagged that file as unexplained back in Phase 5 and
+  never got confirmation of what it is or whether it should be referenced; asserting it in a
+  polished, resume-facing document without that confirmation would have been presumptuous.
 
-**Next:**
+**Next:** None — this was the last phase in the guide. Repo is resume-ready pending the
+resolution of the `CodeArena_Frontend_Build_Guide.md` question above and a final read-through
+of README.md by the user.
