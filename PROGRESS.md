@@ -418,13 +418,56 @@ and the participant/submission data this phase now produces.
 ---
 
 ## Phase 12: Leaderboard, Profile & Rating
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [LeaderboardService.java](src/main/java/com/codearena/service/LeaderboardService.java) — the
+  guide's exact pipeline: participants → their accepted submissions for that contest, summed
+  per user → sorted descending → sequential rank assigned. When the contest is `ENDED`, also
+  applies the rating bump (+10 participating, +50 more for top 3) idempotently.
+- [UserService.java](src/main/java/com/codearena/service/UserService.java) — `GET /api/users/me`
+  data computed live from submissions/participants, never stored redundantly: `problemsSolved`
+  counts *distinct* problems with an ACCEPTED submission (not total accepted submissions),
+  `contestsJoined` from `ContestParticipantRepository`. `rating` itself is stored (it's a real
+  `User` column since Phase 2, unlike the other two fields), maintained by `LeaderboardService`.
+- `GET /api/contests/{id}/leaderboard` on [ContestController.java](src/main/java/com/codearena/controller/ContestController.java);
+  new [UserController.java](src/main/java/com/codearena/controller/UserController.java) for
+  `GET /api/users/me`.
+- Schema addition: `rating_applied` boolean on [ContestParticipant.java](src/main/java/com/codearena/entity/ContestParticipant.java)
+  — see deviations below.
+- Repository addition: `countByUserId` on [ContestParticipantRepository.java](src/main/java/com/codearena/repository/ContestParticipantRepository.java)
+  (Phase 3 gap, same pattern as `ContestProblemRepository` in Phase 9 — needed for
+  `contestsJoined` and never specified).
+- Tests: [LeaderboardServiceTest.java](src/test/java/com/codearena/service/LeaderboardServiceTest.java)
+  (ranking, score-summing across multiple accepted submissions, no rating change while
+  `ACTIVE`, correct +10/+60 split on contest end, and — critically — a second `getLeaderboard`
+  call does **not** re-apply the bonus) and [UserServiceTest.java](src/test/java/com/codearena/service/UserServiceTest.java)
+  (distinct-problem counting).
+- Verified live with 4 participants on a real timed contest: leaderboard ranked correctly
+  (300/200/200/0, ranks 1–4) while `ACTIVE` with rating still 0; once the contest genuinely
+  ended, viewing the leaderboard bumped ranks 1–3 to rating 60 (10+50) and rank 4 to 10
+  (participation only); a second view did not double-apply; `/api/users/me` showed real
+  `problemsSolved`/`contestsJoined` throughout. Full `mvnw test` suite green (38 tests, no
+  regressions).
 
 **Decisions/deviations:**
+- Added `ratingApplied` to `ContestParticipant` — without it, every leaderboard view on an
+  ended contest would re-credit rating, since there's no other "contest finalized" event in
+  this guide (no scheduler, no finalize endpoint). This is the mechanism that makes "a simple
+  rating update on contest participation" actually correct rather than just simple.
+- Rank ties aren't collapsed — two participants with equal score still get sequential ranks
+  (1, 2, 3, ...), not shared ranks. The guide says "sort descending → assign rank" with no
+  tie-breaking rule, so this is the literal reading; it also means a tie for 3rd/4th place
+  resolves by whichever sort order Java's stable sort preserves (insertion order from
+  `findByContestId`), not by e.g. earliest submission time.
+- Top-3 rating bonus is based on leaderboard rank, not score — so a participant who joined but
+  never submitted can still land in the top 3 (with score 0) if fewer than 3 others
+  outscored them, and would still get the bonus. This follows from "top 3 on that contest's
+  leaderboard" literally; the guide gives no minimum-score qualifier.
 
-**Next:**
+**Next:** Phase 13 — API documentation (Swagger/OpenAPI, already partially wired via
+`springdoc-openapi` since Phase 1) and a Postman regression collection covering the full test
+list from the guide.
 
 ---
 

@@ -47,4 +47,14 @@ public class ContestParticipant {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
+    /**
+     * Guards the Phase 12 rating bump (+10 participating, +50 more for top 3) from being
+     * re-applied every time the leaderboard is viewed after the contest ends - there's no
+     * separate "finalize contest" event in this guide, so LeaderboardService applies it
+     * lazily on first post-ENDED view and this flag makes that idempotent.
+     */
+    @Column(name = "rating_applied", nullable = false)
+    @Builder.Default
+    private boolean ratingApplied = false;
+
 }

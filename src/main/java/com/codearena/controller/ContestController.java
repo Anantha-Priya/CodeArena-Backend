@@ -3,8 +3,10 @@ package com.codearena.controller;
 import com.codearena.dto.ContestRequest;
 import com.codearena.dto.ContestResponse;
 import com.codearena.dto.ContestStatusResponse;
+import com.codearena.dto.LeaderboardEntryResponse;
 import com.codearena.service.ContestParticipantService;
 import com.codearena.service.ContestService;
+import com.codearena.service.LeaderboardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ public class ContestController {
 
     private final ContestService contestService;
     private final ContestParticipantService contestParticipantService;
+    private final LeaderboardService leaderboardService;
 
     @PostMapping
     public ResponseEntity<ContestResponse> create(@Valid @RequestBody ContestRequest request) {
@@ -58,6 +61,11 @@ public class ContestController {
     public ResponseEntity<Void> join(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         contestParticipantService.join(id, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/{id}/leaderboard")
+    public ResponseEntity<List<LeaderboardEntryResponse>> getLeaderboard(@PathVariable Long id) {
+        return ResponseEntity.ok(leaderboardService.getLeaderboard(id));
     }
 
 }

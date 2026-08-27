@@ -11,4 +11,6 @@ public interface ContestParticipantRepository extends JpaRepository<ContestParti
 
     List<ContestParticipant> findByContestId(Long contestId);
 
+    long countByUserId(Long userId);
+
 }
