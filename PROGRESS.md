@@ -544,11 +544,12 @@ bullets). No more code phases after this one.
   just embedded in the README.
 
 **Decisions/deviations:**
-- Left `CodeArena_Frontend_Build_Guide.md` out of the README entirely rather than referencing
-  it as a "planned companion guide" — flagged that file as unexplained back in Phase 5 and
-  never got confirmation of what it is or whether it should be referenced; asserting it in a
-  polished, resume-facing document without that confirmation would have been presumptuous.
+- `CodeArena_Frontend_Build_Guide.md` had been sitting untracked since Phase 5 with no
+  confirmation of what it was; initially left it out of the README for that reason. User
+  confirmed they wrote it themselves as a v2 planning doc (a 14-phase React/TypeScript
+  frontend roadmap in the same style as the backend guide) — now tracked in git and linked
+  from the README's "What I'd do at scale" section.
 
-**Next:** None — this was the last phase in the guide. Repo is resume-ready pending the
-resolution of the `CodeArena_Frontend_Build_Guide.md` question above and a final read-through
-of README.md by the user.
+**Next:** None — this was the last phase in the guide. Backend v1 is complete and resume-ready.
+Next real work, whenever the user is ready, is the frontend build-out tracked in
+`CodeArena_Frontend_Build_Guide.md`.

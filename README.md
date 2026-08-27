@@ -183,7 +183,10 @@ purpose rather than by oversight:
   request. For a contest with heavy concurrent traffic, that's the first thing I'd cache —
   short-TTL leaderboard snapshots, invalidated on new ACCEPTED submissions.
 - **A React frontend.** This is a backend-only API by design — a real product needs a UI on
-  top of this contract.
+  top of this contract. The planned build-out is already scoped in
+  [`CodeArena_Frontend_Build_Guide.md`](CodeArena_Frontend_Build_Guide.md): a 14-phase
+  React + TypeScript + Vite roadmap (auth pages, protected routing, problem/contest/
+  leaderboard views, admin CRUD screens, deployment), started once this API was complete.
 - Other things I'd add before calling this production-ready: rate limiting on auth endpoints,
   refresh tokens (current JWTs are 24h with no revocation), pagination on `GET /api/contests`
   and `GET /api/submissions/my` (currently unpaginated lists), and structured audit logging
