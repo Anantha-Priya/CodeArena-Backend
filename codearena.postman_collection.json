@@ -1,0 +1,883 @@
+{
+  "info": {
+    "name": "CodeArena API",
+    "description": "Regression collection for the CodeArena API. Run folders top-to-bottom (Auth -> Problems -> Contests -> Contest Participation -> Submissions -> Leaderboard) - later requests depend on ids/tokens captured by earlier ones via collection variables.\n\nIMPORTANT - one manual step: this API has no admin-creation endpoint (v1 scope). After running \"Auth > Register Admin\" once, promote that user before running the Problems/Contests admin requests:\n\nUPDATE users SET role='ADMIN' WHERE email='postman_admin@codearena.com';\n\nAssumes the app is running locally on the default port (baseUrl below) and codearena_db has no conflicting data from a previous run - re-registering the same email/username will 409.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "password", "value": "Passw0rd!" },
+    { "key": "adminUsername", "value": "postman_admin" },
+    { "key": "adminEmail", "value": "postman_admin@codearena.com" },
+    { "key": "userUsername", "value": "postman_user" },
+    { "key": "userEmail", "value": "postman_user@codearena.com" },
+    { "key": "nonParticipantUsername", "value": "postman_nonparticipant" },
+    { "key": "nonParticipantEmail", "value": "postman_nonparticipant@codearena.com" },
+    { "key": "adminToken", "value": "" },
+    { "key": "userToken", "value": "" },
+    { "key": "nonParticipantToken", "value": "" },
+    { "key": "problemId", "value": "" },
+    { "key": "unassociatedProblemId", "value": "" },
+    { "key": "problemToDeleteId", "value": "" },
+    { "key": "contestActiveId", "value": "" },
+    { "key": "contestUpcomingId", "value": "" },
+    { "key": "contestEndedId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Register succeeds with 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Register - Duplicate Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"someone_else\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Duplicate email is rejected with 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "pm.test('Body explains the conflict', function () {",
+              "    pm.expect(pm.response.json().message).to.include('Email');",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Login succeeds with 200 and a token', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().token).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+            ]}
+          }]
+        },
+        {
+          "name": "Login - Invalid Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"WrongPassword!\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Wrong password is rejected with 401', function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{userUsername}}\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Register succeeds with 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Login succeeds with 200 and a token', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().token).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.collectionVariables.set('userToken', pm.response.json().token);"
+            ]}
+          }]
+        },
+        {
+          "name": "Register Non-Participant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{nonParticipantUsername}}\",\n  \"email\": \"{{nonParticipantEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Register succeeds with 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Login Non-Participant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{nonParticipantEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Login succeeds with 200 and a token', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().token).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.collectionVariables.set('nonParticipantToken', pm.response.json().token);"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Problems",
+      "item": [
+        {
+          "name": "Create Problem - Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/problems",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Two Sum\",\n  \"description\": \"Find two numbers that add up to target\",\n  \"difficulty\": \"MEDIUM\",\n  \"topic\": \"arrays\",\n  \"constraints\": \"1 <= n <= 1000\",\n  \"inputFormat\": \"An array and a target\",\n  \"outputFormat\": \"Indices of the two numbers\",\n  \"sampleInput\": \"[2,7,11,15], 9\",\n  \"sampleOutput\": \"[0,1]\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Admin can create a problem (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.collectionVariables.set('problemId', pm.response.json().id);"
+            ]}
+          }]
+        },
+        {
+          "name": "Create Problem - Non-Admin Blocked",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/problems",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should Fail\",\n  \"description\": \"d\",\n  \"difficulty\": \"EASY\",\n  \"topic\": \"x\",\n  \"constraints\": \"c\",\n  \"inputFormat\": \"i\",\n  \"outputFormat\": \"o\",\n  \"sampleInput\": \"si\",\n  \"sampleOutput\": \"so\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Non-admin is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Create Unassociated Problem",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/problems",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Not In Any Contest\",\n  \"description\": \"d\",\n  \"difficulty\": \"EASY\",\n  \"topic\": \"x\",\n  \"constraints\": \"c\",\n  \"inputFormat\": \"i\",\n  \"outputFormat\": \"o\",\n  \"sampleInput\": \"si\",\n  \"sampleOutput\": \"so\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Admin can create a problem (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.collectionVariables.set('unassociatedProblemId', pm.response.json().id);"
+            ]}
+          }]
+        },
+        {
+          "name": "Search Problems - Filter + Pagination",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/problems?difficulty=MEDIUM&page=0&size=10"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Returns 200 with a filtered, paginated page', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.content).to.be.an('array');",
+              "    pm.expect(body).to.have.property('totalElements');",
+              "    body.content.forEach((p) => pm.expect(p.difficulty).to.eql('MEDIUM'));",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Problem By Id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/problems/{{problemId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Returns 200 with the problem', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('problemId')));",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Update Problem - Admin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/problems/{{problemId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Two Sum (Updated)\",\n  \"description\": \"d\",\n  \"difficulty\": \"MEDIUM\",\n  \"topic\": \"arrays\",\n  \"constraints\": \"c\",\n  \"inputFormat\": \"i\",\n  \"outputFormat\": \"o\",\n  \"sampleInput\": \"si\",\n  \"sampleOutput\": \"so\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Admin can update (200)', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().title).to.eql('Two Sum (Updated)');",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Update Problem - Non-Admin Blocked",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/problems/{{problemId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hacked\",\n  \"description\": \"d\",\n  \"difficulty\": \"MEDIUM\",\n  \"topic\": \"arrays\",\n  \"constraints\": \"c\",\n  \"inputFormat\": \"i\",\n  \"outputFormat\": \"o\",\n  \"sampleInput\": \"si\",\n  \"sampleOutput\": \"so\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Non-admin is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Create Problem For Delete Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/problems",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Temporary\",\n  \"description\": \"d\",\n  \"difficulty\": \"EASY\",\n  \"topic\": \"x\",\n  \"constraints\": \"c\",\n  \"inputFormat\": \"i\",\n  \"outputFormat\": \"o\",\n  \"sampleInput\": \"si\",\n  \"sampleOutput\": \"so\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Admin can create a problem (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.collectionVariables.set('problemToDeleteId', pm.response.json().id);"
+            ]}
+          }]
+        },
+        {
+          "name": "Delete Problem - Non-Admin Blocked",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/problems/{{problemToDeleteId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Non-admin is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Delete Problem - Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/problems/{{problemToDeleteId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Admin can delete (204)', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Contests",
+      "item": [
+        {
+          "name": "Create Contest - Active",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/contests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Active Contest\",\n  \"description\": \"d\",\n  \"startTime\": \"{{activeStart}}\",\n  \"endTime\": \"{{activeEnd}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": [
+                "function toLocalIso(date) {",
+                "    const pad = (n) => String(n).padStart(2, '0');",
+                "    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;",
+                "}",
+                "const now = new Date();",
+                "pm.collectionVariables.set('activeStart', toLocalIso(new Date(now.getTime() - 60 * 1000)));",
+                "pm.collectionVariables.set('activeEnd', toLocalIso(new Date(now.getTime() + 60 * 60 * 1000)));"
+              ]}
+            },
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Admin can create a contest (201)', function () {",
+                "    pm.response.to.have.status(201);",
+                "});",
+                "pm.collectionVariables.set('contestActiveId', pm.response.json().id);"
+              ]}
+            }
+          ]
+        },
+        {
+          "name": "Create Contest - Upcoming",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/contests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Upcoming Contest\",\n  \"description\": \"d\",\n  \"startTime\": \"{{upcomingStart}}\",\n  \"endTime\": \"{{upcomingEnd}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": [
+                "function toLocalIso(date) {",
+                "    const pad = (n) => String(n).padStart(2, '0');",
+                "    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;",
+                "}",
+                "const now = new Date();",
+                "pm.collectionVariables.set('upcomingStart', toLocalIso(new Date(now.getTime() + 60 * 60 * 1000)));",
+                "pm.collectionVariables.set('upcomingEnd', toLocalIso(new Date(now.getTime() + 2 * 60 * 60 * 1000)));"
+              ]}
+            },
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Admin can create a contest (201)', function () {",
+                "    pm.response.to.have.status(201);",
+                "});",
+                "pm.collectionVariables.set('contestUpcomingId', pm.response.json().id);"
+              ]}
+            }
+          ]
+        },
+        {
+          "name": "Create Contest - Ended",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/contests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman Ended Contest\",\n  \"description\": \"d\",\n  \"startTime\": \"{{endedStart}}\",\n  \"endTime\": \"{{endedEnd}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": [
+                "function toLocalIso(date) {",
+                "    const pad = (n) => String(n).padStart(2, '0');",
+                "    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;",
+                "}",
+                "const now = new Date();",
+                "pm.collectionVariables.set('endedStart', toLocalIso(new Date(now.getTime() - 2 * 60 * 60 * 1000)));",
+                "pm.collectionVariables.set('endedEnd', toLocalIso(new Date(now.getTime() - 60 * 60 * 1000)));"
+              ]}
+            },
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Admin can create a contest (201)', function () {",
+                "    pm.response.to.have.status(201);",
+                "});",
+                "pm.collectionVariables.set('contestEndedId', pm.response.json().id);"
+              ]}
+            }
+          ]
+        },
+        {
+          "name": "Create Contest - Non-Admin Blocked",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/contests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should Fail\",\n  \"description\": \"d\",\n  \"startTime\": \"2027-01-01T10:00:00\",\n  \"endTime\": \"2027-01-01T12:00:00\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Non-admin is blocked with 403', function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Create Contest - Invalid (end before start)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/contests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Bad Contest\",\n  \"description\": \"d\",\n  \"startTime\": \"2027-01-01T12:00:00\",\n  \"endTime\": \"2027-01-01T10:00:00\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('end_time <= start_time is rejected with 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Contests List",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Returns 200 with a list', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Contest By Id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Returns 200 with the contest', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('contestActiveId')));",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Add Problem To Contest",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/problems/{{problemId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Admin can associate a problem (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Add Problem To Contest - Duplicate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/problems/{{problemId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Duplicate association is rejected with 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Contest Status - Active",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/status"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Status is ACTIVE', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().status).to.eql('ACTIVE');",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Contest Participation",
+      "item": [
+        {
+          "name": "Join - Before Contest Window (Upcoming)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestUpcomingId}}/join"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Joining before the contest starts succeeds (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Join - During Contest Window (Active)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/join"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Joining during the contest succeeds (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Join - Duplicate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/join"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Joining the same contest twice is rejected with 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Join - After Contest Window (Ended)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestEndedId}}/join"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Joining an ended contest is rejected with 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Submissions",
+      "item": [
+        {
+          "name": "Submit - Non-Participant Blocked",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{nonParticipantToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/submissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contestId\": {{contestActiveId}},\n  \"problemId\": {{problemId}},\n  \"language\": \"java\",\n  \"sourceCode\": \"class Solution {}\",\n  \"status\": \"ACCEPTED\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Submitting without joining is rejected with 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Submit - Invalid (Problem Not In Contest)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/submissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contestId\": {{contestActiveId}},\n  \"problemId\": {{unassociatedProblemId}},\n  \"language\": \"java\",\n  \"sourceCode\": \"class Solution {}\",\n  \"status\": \"ACCEPTED\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Submitting to a problem outside the contest is rejected with 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Submit - Valid (Accepted)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/submissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contestId\": {{contestActiveId}},\n  \"problemId\": {{problemId}},\n  \"language\": \"java\",\n  \"sourceCode\": \"class Solution {}\",\n  \"status\": \"ACCEPTED\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Valid submission is accepted (201) and scored', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.status).to.eql('ACCEPTED');",
+              "    pm.expect(body.score).to.eql(200);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Leaderboard",
+      "item": [
+        {
+          "name": "Join - Second Participant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{nonParticipantToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/join"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Second participant joins (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Submit - Second Participant (Wrong Answer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{nonParticipantToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/submissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contestId\": {{contestActiveId}},\n  \"problemId\": {{problemId}},\n  \"language\": \"java\",\n  \"sourceCode\": \"class Solution {}\",\n  \"status\": \"WRONG_ANSWER\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Wrong-answer submission scores 0 (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(pm.response.json().score).to.eql(0);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Leaderboard - Multiple Participants",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/api/contests/{{contestActiveId}}/leaderboard"
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('Leaderboard has 2 participants ranked correctly by score', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const entries = pm.response.json();",
+              "    pm.expect(entries.length).to.be.at.least(2);",
+              "    pm.expect(entries[0].rank).to.eql(1);",
+              "    pm.expect(entries[0].username).to.eql(pm.collectionVariables.get('userUsername'));",
+              "    pm.expect(entries[0].score).to.eql(200);",
+              "    pm.expect(entries[1].rank).to.eql(2);",
+              "    pm.expect(entries[1].score).to.eql(0);",
+              "    for (let i = 1; i < entries.length; i++) {",
+              "        pm.expect(entries[i].score).to.be.at.most(entries[i - 1].score);",
+              "    }",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    }
+  ]
+}

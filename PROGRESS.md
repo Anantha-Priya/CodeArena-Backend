@@ -472,13 +472,54 @@ list from the guide.
 ---
 
 ## Phase 13: API Documentation + Testing
-- [ ] Done
+- [x] Done
 
 **Built:**
+- [OpenApiConfig.java](src/main/java/com/codearena/config/OpenApiConfig.java) — API
+  title/description/version, a `bearerAuth` JWT security scheme (Swagger UI gets a real
+  "Authorize" button), and the six tag descriptions declared centrally rather than via
+  class-level `@Tag` (see deviations).
+- Every controller (`AuthController`, `ProblemController`, `ContestController`,
+  `SubmissionController`, `UserController`) annotated with `@Operation` (summary +
+  description) and `@ApiResponse` for every status code it can actually return, plus
+  `@SecurityRequirement(name = "bearerAuth")` on the four that need a token. Verified via
+  `GET /v3/api-docs`: all 14 business endpoints tagged Authentication/Problems/Contests/
+  Submissions/Leaderboard/Users exactly as the guide lists, each with the right method,
+  request body schema, security requirement, and success/error response set.
+- [codearena.postman_collection.json](codearena.postman_collection.json) — 38 requests across
+  6 folders (Auth, Problems, Contests, Contest Participation, Submissions, Leaderboard)
+  covering every scenario in the guide's test list, each with a `pm.test` assertion on status
+  code (and key response fields like score/rank where relevant). Uses collection variables to
+  chain state across requests (tokens, created ids) and a per-request pre-request script to
+  compute UPCOMING/ACTIVE/ENDED contest windows relative to whenever the collection actually
+  runs.
 
 **Decisions/deviations:**
+- Moved tag descriptions off class-level `@Tag` and into `OpenApiConfig`'s global tag list,
+  with `tags = {"X"}` set explicitly on every `@Operation` instead. Found out empirically that
+  springdoc **merges** a class-level `@Tag` onto an operation's own `@Operation(tags=...)`
+  rather than being overridden by it — the leaderboard endpoint (physically in
+  `ContestController` but meant to carry only the `Leaderboard` tag per the guide) was showing
+  up under both `Contests` and `Leaderboard` until this was fixed. Every endpoint now carries
+  exactly one tag, confirmed via `/v3/api-docs`.
+- No Newman/Node.js available in this environment to literally execute the `.json` collection,
+  so it was validated two ways instead: schema/parse validation (`ConvertFrom-Json`, 38
+  requests across 6 folders, well-formed), and a full line-by-line curl replay of the exact
+  same request sequence — same URLs, field names, and order — against the live app, asserting
+  the exact status codes and body values (score, rank, status) the collection's own
+  `pm.test` scripts check. All 38 steps passed, including the final leaderboard ranking
+  matching exactly.
+- Documented one real limitation directly in the collection's own description rather than
+  hiding it: there's still no admin-creation endpoint (true since Phase 6), so running the
+  Problems/Contests admin folders requires one manual `UPDATE users SET role='ADMIN' ...`
+  after the first run registers the admin user — the same step used for manual testing
+  throughout this whole project.
+- `OpenApiConfig` lives in a new `config/` package, not listed in CLAUDE.md's original package
+  structure — a small, standard addition for a single `@Bean`, not worth its own top-level doc
+  entry.
 
-**Next:**
+**Next:** Phase 14 — git hygiene & resume polish (README, architecture diagram, resume
+bullets). No more code phases after this one.
 
 ---
 
