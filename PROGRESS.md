@@ -553,3 +553,33 @@ bullets). No more code phases after this one.
 **Next:** None — this was the last phase in the guide. Backend v1 is complete and resume-ready.
 Next real work, whenever the user is ready, is the frontend build-out tracked in
 `CodeArena_Frontend_Build_Guide.md`.
+
+---
+
+## Post-Phase 14: CORS support for the frontend
+
+Not one of the guide's 14 phases — added ahead of the frontend build-out after writing
+`D:\Projects\CodeArena-Frontend\API_REFERENCE.md` and finding the backend had zero CORS
+configuration, which would have blocked the frontend's very first request (the Phase 1
+health check).
+
+**Built:**
+- [SecurityConfig.java](src/main/java/com/codearena/security/SecurityConfig.java) — added
+  `.cors(...)` to the filter chain and a `corsConfigurationSource()` bean allowing
+  `http://localhost:5173` and `http://127.0.0.1:5173` (Vite's default dev port, both loopback
+  forms), methods GET/POST/PUT/DELETE/OPTIONS, headers `Authorization`/`Content-Type`.
+- Verified live: preflight `OPTIONS` from the allowed origin → 200 with correct
+  `Access-Control-Allow-*` headers; preflight from a disallowed origin → 403 "Invalid CORS
+  request" with no CORS headers (browser would block it); a real authenticated `GET` (with
+  both `Origin` and a JWT) → 200 with `Access-Control-Allow-Origin` present, proving CORS and
+  the JWT filter interoperate correctly. Confirmed non-browser clients (no `Origin` header at
+  all — curl/Postman) are completely unaffected: health check, 401-without-token, and Swagger
+  UI all behave exactly as before. Full `mvnw test` suite still green (38 tests).
+
+**Decisions/deviations:**
+- Didn't add an explicit `permitAll()` rule for CORS preflight requests in
+  `authorizeHttpRequests` — verified empirically that Spring's `CorsFilter` (wired in via
+  `.cors(...)`) fully handles and terminates preflight `OPTIONS` requests before they ever
+  reach the authorization filter, so no extra rule was needed to keep the change minimal.
+- `allowCredentials` left at its default (`false`) — the app uses a Bearer token in a header,
+  not cookies, so browsers don't need credentialed CORS mode for this to work.
