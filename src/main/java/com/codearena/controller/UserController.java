@@ -25,8 +25,8 @@ public class UserController {
 
     @Operation(
         summary = "Get the caller's own profile",
-        description = "username/rating/problemsSolved/contestsJoined - rating is stored, "
-            + "the other two are computed live from submission/participant data.",
+        description = "username/role/rating/problemsSolved/contestsJoined - role and rating are "
+            + "stored, problemsSolved/contestsJoined are computed live from submission/participant data.",
         tags = {"Users"},
         responses = {
             @ApiResponse(responseCode = "200", description = "Profile data",

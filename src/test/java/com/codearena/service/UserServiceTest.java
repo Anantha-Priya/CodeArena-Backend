@@ -2,6 +2,7 @@ package com.codearena.service;
 
 import com.codearena.dto.UserProfileResponse;
 import com.codearena.entity.Problem;
+import com.codearena.entity.Role;
 import com.codearena.entity.Submission;
 import com.codearena.entity.SubmissionStatus;
 import com.codearena.entity.User;
@@ -32,7 +33,7 @@ class UserServiceTest {
     @Test
     void problemsSolvedCountsDistinctAcceptedProblemsNotTotalSubmissions() {
         UserService service = new UserService(userRepository, submissionRepository, contestParticipantRepository);
-        User user = User.builder().id(1L).username("alice").rating(70).build();
+        User user = User.builder().id(1L).username("alice").role(Role.ADMIN).rating(70).build();
         Problem problemA = Problem.builder().id(10L).build();
         Problem problemB = Problem.builder().id(20L).build();
 
@@ -47,6 +48,7 @@ class UserServiceTest {
         UserProfileResponse response = service.getMyProfile("alice@codearena.com");
 
         assertThat(response.getUsername()).isEqualTo("alice");
+        assertThat(response.getRole()).isEqualTo(Role.ADMIN);
         assertThat(response.getRating()).isEqualTo(70);
         assertThat(response.getProblemsSolved()).isEqualTo(1);
         assertThat(response.getContestsJoined()).isEqualTo(3);

@@ -32,6 +32,7 @@ public class UserService {
 
         return UserProfileResponse.builder()
             .username(user.getUsername())
+            .role(user.getRole())
             .rating(user.getRating())
             .problemsSolved(problemsSolved)
             .contestsJoined(contestsJoined)

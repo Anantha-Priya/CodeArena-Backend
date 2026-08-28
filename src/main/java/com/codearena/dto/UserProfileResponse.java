@@ -1,5 +1,6 @@
 package com.codearena.dto;
 
+import com.codearena.entity.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import lombok.Setter;
 public class UserProfileResponse {
 
     private String username;
+    private Role role;
     private int rating;
     private long problemsSolved;
     private long contestsJoined;

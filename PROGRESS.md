@@ -469,6 +469,22 @@ and the participant/submission data this phase now produces.
 `springdoc-openapi` since Phase 1) and a Postman regression collection covering the full test
 list from the guide.
 
+**Later addition (post-Phase 14):** Added a `role` field to `UserProfileResponse`
+(`GET /api/users/me`), sourced directly from `User.role` (the same `Role` enum — `USER`/`ADMIN`
+— Spring Security already uses for admin-endpoint authorization; no new role system invented).
+Single field, not an array — `User` only ever carries one role. Typed as `Role` rather than
+`String` to match this codebase's existing convention (`ProblemResponse.difficulty`,
+`SubmissionResponse.status` are also enum-typed and serialize to a plain string via Jackson
+the same way). Purely additive — every existing field is untouched, so this can't break an
+existing consumer. Needed so the frontend (`CodeArena-Frontend`) can build role-aware
+navigation without a second call. `UserServiceTest` updated to build the test user with an
+explicit `ADMIN` role and assert the response carries it through; full `mvnw test` suite
+still green (38 tests). Verified live for both a `USER` and an `ADMIN` account — response
+shape:
+```json
+{"username": "alice", "role": "ADMIN", "rating": 60, "problemsSolved": 3, "contestsJoined": 2}
+```
+
 ---
 
 ## Phase 13: API Documentation + Testing
