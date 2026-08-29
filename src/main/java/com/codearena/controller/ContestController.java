@@ -4,6 +4,7 @@ import com.codearena.dto.ContestRequest;
 import com.codearena.dto.ContestResponse;
 import com.codearena.dto.ContestStatusResponse;
 import com.codearena.dto.LeaderboardEntryResponse;
+import com.codearena.dto.ProblemResponse;
 import com.codearena.exception.ErrorResponse;
 import com.codearena.service.ContestParticipantService;
 import com.codearena.service.ContestService;
@@ -109,6 +110,25 @@ public class ContestController {
     public ResponseEntity<Void> addProblem(@PathVariable Long contestId, @PathVariable Long problemId) {
         contestService.addProblemToContest(contestId, problemId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @Operation(
+        summary = "Get the problems attached to a contest",
+        description = "Same ProblemResponse shape as GET /api/problems/{id}. Returns an empty "
+            + "array (not 404) if the contest exists but has no problems attached yet.",
+        tags = {"Contests"},
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Attached problems (possibly empty)",
+                content = @Content(array = @ArraySchema(schema = @Schema(implementation = ProblemResponse.class)))),
+            @ApiResponse(responseCode = "401", description = "Missing/invalid token",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "No contest with that id",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        }
+    )
+    @GetMapping("/{id}/problems")
+    public ResponseEntity<List<ProblemResponse>> getProblems(@PathVariable Long id) {
+        return ResponseEntity.ok(contestService.getProblemsForContest(id));
     }
 
     @Operation(

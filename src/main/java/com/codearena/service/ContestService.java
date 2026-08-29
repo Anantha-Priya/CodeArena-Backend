@@ -3,6 +3,7 @@ package com.codearena.service;
 import com.codearena.dto.ContestRequest;
 import com.codearena.dto.ContestResponse;
 import com.codearena.dto.ContestStatusResponse;
+import com.codearena.dto.ProblemResponse;
 import com.codearena.entity.Contest;
 import com.codearena.entity.ContestProblem;
 import com.codearena.entity.ContestStatus;
@@ -26,6 +27,7 @@ public class ContestService {
     private final ContestRepository contestRepository;
     private final ProblemRepository problemRepository;
     private final ContestProblemRepository contestProblemRepository;
+    private final ProblemService problemService;
 
     public ContestResponse create(ContestRequest request) {
         Contest contest = Contest.builder()
@@ -61,6 +63,15 @@ public class ContestService {
             .contest(contest)
             .problem(problem)
             .build());
+    }
+
+    public List<ProblemResponse> getProblemsForContest(Long contestId) {
+        findByIdOrThrow(contestId);
+
+        return contestProblemRepository.findByContestId(contestId).stream()
+            .map(ContestProblem::getProblem)
+            .map(problemService::toResponse)
+            .toList();
     }
 
     public ContestStatusResponse getStatus(Long id) {

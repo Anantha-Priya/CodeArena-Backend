@@ -86,7 +86,9 @@ public class ProblemService {
         };
     }
 
-    private ProblemResponse toResponse(Problem problem) {
+    // Package-private (not private) so ContestService can reuse this exact mapping for
+    // GET /api/contests/{id}/problems instead of duplicating it.
+    ProblemResponse toResponse(Problem problem) {
         return ProblemResponse.builder()
             .id(problem.getId())
             .title(problem.getTitle())

@@ -340,6 +340,23 @@ server-side UPCOMING/ACTIVE/ENDED state).
 **Next:** Phase 10 — Contest Participation (`POST /api/contests/{id}/join`, using
 `ContestParticipantRepository` from Phase 3 and `Contest.getStatus()` from this phase).
 
+**Later addition (post-Phase 14):** Added `GET /api/contests/{id}/problems` — there was
+previously no way for a client to ask "which problems belong to contest X" at all (only the
+write side existed, `POST .../problems/{problemId}`), a real gap once the frontend needed to
+render a contest's problem list. `ContestService.getProblemsForContest()` reuses
+`ContestProblemRepository.findByContestId` (already built this phase) and returns the exact
+same `ProblemResponse` shape as `GET /api/problems/{id}` — no new DTO invented. 404 if the
+contest doesn't exist, an empty array (not 404) if it exists with nothing attached yet. Same
+access level as `GET /api/contests/{id}` (any authenticated user); no `SecurityConfig` change
+needed since the existing admin-only rules are POST/PUT-specific. `ProblemService.toResponse`
+was widened from `private` to package-private so `ContestService` could reuse the exact same
+mapping instead of duplicating it — the same cross-service pattern `SubmissionService`
+already uses with `ScoreService`. New `ContestServiceTest.java` (ContestService's first
+dedicated unit test) covers all three cases: attached problems, none attached (empty list),
+nonexistent contest (404). Verified live with two real contests (one with 2 problems
+attached, one with none) plus the 404 and 401 cases; confirmed `GET /api/contests/{id}`'s own
+response shape is completely untouched. Full `mvnw test` suite green (41 tests).
+
 ---
 
 ## Phase 10: Contest Participation
