@@ -357,6 +357,26 @@ nonexistent contest (404). Verified live with two real contests (one with 2 prob
 attached, one with none) plus the 404 and 401 cases; confirmed `GET /api/contests/{id}`'s own
 response shape is completely untouched. Full `mvnw test` suite green (41 tests).
 
+**Later addition (post-Phase 14):** Added `hasJoined` to `ContestStatusResponse`
+(`GET /api/contests/{id}/status`), so the frontend's Contest Detail page — which already
+polls this exact endpoint every 7s for the live countdown — gets join status for free with no
+extra request. This unblocks the frontend build guide's Phase 8 (Join flow), which needs to
+know whether to show "Join Contest" or a disabled "Joined" state. New
+`ContestParticipantService.hasJoined(contestId, userEmail)` reuses the identical
+`existsByUserIdAndContestId` check `join()` (Phase 10) already uses internally — no new query,
+no duplicated logic. `ContestController.getStatus` calls `contestService.getStatus(id)` first
+(unchanged — still 404s on a missing contest before `hasJoined` is ever evaluated), then sets
+`hasJoined` via the already-injected `ContestParticipantService` (no new controller
+dependency). Confirmed `/status` was already behind `anyRequest().authenticated()` — it was
+never accidentally public, nothing to fix there. `status`/`remainingSeconds` are untouched;
+purely additive. 3 new tests on `ContestParticipantServiceTest` (true after joining, false
+before, and the existing not-found-user path). Verified live: `hasJoined:false` before
+joining, `true` after, `false` for a second user who hasn't joined the same contest (proving
+it's per-caller), 401 and 404 both unaffected. Full `mvnw test` suite green (44 tests). Live
+traffic was visible in the server log during this change — the frontend dev server is
+apparently already polling this exact endpoint with a real session, confirming the "every 7s"
+claim in the request and validating the fix against real usage, not just synthetic tests.
+
 ---
 
 ## Phase 10: Contest Participation

@@ -47,4 +47,11 @@ public class ContestParticipantService {
             .build());
     }
 
+    public boolean hasJoined(Long contestId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
+
+        return contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contestId);
+    }
+
 }

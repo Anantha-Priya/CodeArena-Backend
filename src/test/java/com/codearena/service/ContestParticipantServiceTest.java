@@ -124,4 +124,28 @@ class ContestParticipantServiceTest {
         verify(contestParticipantRepository, times(1)).save(any());
     }
 
+    @Test
+    void hasJoinedReturnsTrueAfterJoining() {
+        when(userRepository.findByEmail("user@codearena.com")).thenReturn(Optional.of(user));
+        when(contestParticipantRepository.existsByUserIdAndContestId(1L, 1L)).thenReturn(true);
+
+        assertThat(service.hasJoined(1L, "user@codearena.com")).isTrue();
+    }
+
+    @Test
+    void hasJoinedReturnsFalseBeforeJoining() {
+        when(userRepository.findByEmail("user@codearena.com")).thenReturn(Optional.of(user));
+        when(contestParticipantRepository.existsByUserIdAndContestId(1L, 1L)).thenReturn(false);
+
+        assertThat(service.hasJoined(1L, "user@codearena.com")).isFalse();
+    }
+
+    @Test
+    void hasJoinedThrowsNotFoundWhenUserDoesNotExist() {
+        when(userRepository.findByEmail("ghost@codearena.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.hasJoined(1L, "ghost@codearena.com"))
+            .isInstanceOf(ResourceNotFoundException.class);
+    }
+
 }

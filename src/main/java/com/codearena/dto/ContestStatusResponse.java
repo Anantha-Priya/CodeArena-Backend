@@ -15,5 +15,6 @@ public class ContestStatusResponse {
 
     private String status;
     private long remainingSeconds;
+    private boolean hasJoined;
 
 }

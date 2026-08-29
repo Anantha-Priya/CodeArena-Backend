@@ -133,10 +133,11 @@ public class ContestController {
 
     @Operation(
         summary = "Get a contest's live status",
-        description = "Computed purely from start_time/end_time vs. server time - UPCOMING, ACTIVE, or ENDED.",
+        description = "Computed purely from start_time/end_time vs. server time - UPCOMING, ACTIVE, or ENDED. "
+            + "hasJoined reflects whether the calling user has already joined this contest.",
         tags = {"Contests"},
         responses = {
-            @ApiResponse(responseCode = "200", description = "Current status and seconds remaining",
+            @ApiResponse(responseCode = "200", description = "Current status, seconds remaining, and hasJoined",
                 content = @Content(schema = @Schema(implementation = ContestStatusResponse.class))),
             @ApiResponse(responseCode = "401", description = "Missing/invalid token",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -145,8 +146,13 @@ public class ContestController {
         }
     )
     @GetMapping("/{id}/status")
-    public ResponseEntity<ContestStatusResponse> getStatus(@PathVariable Long id) {
-        return ResponseEntity.ok(contestService.getStatus(id));
+    public ResponseEntity<ContestStatusResponse> getStatus(
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        ContestStatusResponse status = contestService.getStatus(id);
+        status.setHasJoined(contestParticipantService.hasJoined(id, userDetails.getUsername()));
+        return ResponseEntity.ok(status);
     }
 
     @Operation(
