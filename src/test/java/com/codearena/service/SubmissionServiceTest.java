@@ -167,4 +167,40 @@ class SubmissionServiceTest {
         assertThat(response.getScore()).isZero();
     }
 
+    @Test
+    void practiceSubmissionWithNoContestIdSucceedsAndScoresCorrectly() {
+        SubmissionRequest practiceRequest =
+            new SubmissionRequest(null, 20L, "java", "code", SubmissionStatus.ACCEPTED);
+        when(problemRepository.findById(20L)).thenReturn(Optional.of(mediumProblem));
+        when(submissionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SubmissionResponse response = service.submit(practiceRequest, "user@codearena.com");
+
+        assertThat(response.getScore()).isEqualTo(200);
+        assertThat(response.getContestId()).isNull();
+        assertThat(response.getContestTitle()).isNull();
+
+        // none of the contest-specific checks should even run for a practice submission
+        verify(contestRepository, never()).findById(any());
+        verify(contestParticipantRepository, never()).existsByUserIdAndContestId(any(), any());
+        verify(contestProblemRepository, never()).existsByContestIdAndProblemId(any(), any());
+
+        ArgumentCaptor<Submission> captor = ArgumentCaptor.forClass(Submission.class);
+        verify(submissionRepository).save(captor.capture());
+        assertThat(captor.getValue().getContest()).isNull();
+        assertThat(captor.getValue().getScore()).isEqualTo(200);
+    }
+
+    @Test
+    void practiceSubmissionProblemNotFoundThrows404() {
+        SubmissionRequest practiceRequest =
+            new SubmissionRequest(null, 99L, "java", "code", SubmissionStatus.ACCEPTED);
+        when(problemRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.submit(practiceRequest, "user@codearena.com"))
+            .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(submissionRepository, never()).save(any());
+    }
+
 }

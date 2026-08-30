@@ -21,9 +21,11 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Authentication itself is already enforced by SecurityConfig - the checks here follow the
- * guide's remaining order: contest exists -> problem exists -> user has joined -> contest is
- * ACTIVE -> problem belongs to the contest -> create.
+ * Authentication itself is already enforced by SecurityConfig. A contestId is optional
+ * (practice mode - see CLAUDE.md); when present the checks follow the guide's original order:
+ * contest exists -> problem exists -> user has joined -> contest is ACTIVE -> problem belongs
+ * to the contest -> create. When absent, only "problem exists" applies - no participation,
+ * timing, or association rule makes sense outside a contest.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,22 +43,27 @@ public class SubmissionService {
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userEmail));
 
-        Contest contest = contestRepository.findById(request.getContestId())
-            .orElseThrow(() -> new ResourceNotFoundException("Contest not found: " + request.getContestId()));
+        Contest contest = null;
+        if (request.getContestId() != null) {
+            contest = contestRepository.findById(request.getContestId())
+                .orElseThrow(() -> new ResourceNotFoundException("Contest not found: " + request.getContestId()));
+        }
 
         Problem problem = problemRepository.findById(request.getProblemId())
             .orElseThrow(() -> new ResourceNotFoundException("Problem not found: " + request.getProblemId()));
 
-        if (!contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contest.getId())) {
-            throw new BadRequestException("You have not joined this contest");
-        }
+        if (contest != null) {
+            if (!contestParticipantRepository.existsByUserIdAndContestId(user.getId(), contest.getId())) {
+                throw new BadRequestException("You have not joined this contest");
+            }
 
-        if (contest.getStatus() != ContestStatus.ACTIVE) {
-            throw new BadRequestException("Contest is not currently active");
-        }
+            if (contest.getStatus() != ContestStatus.ACTIVE) {
+                throw new BadRequestException("Contest is not currently active");
+            }
 
-        if (!contestProblemRepository.existsByContestIdAndProblemId(contest.getId(), problem.getId())) {
-            throw new BadRequestException("Problem does not belong to this contest");
+            if (!contestProblemRepository.existsByContestIdAndProblemId(contest.getId(), problem.getId())) {
+                throw new BadRequestException("Problem does not belong to this contest");
+            }
         }
 
         int score = scoreService.calculateScore(request.getStatus(), problem.getDifficulty());
@@ -84,12 +91,14 @@ public class SubmissionService {
     }
 
     private SubmissionResponse toResponse(Submission submission) {
+        Contest contest = submission.getContest();
+
         return SubmissionResponse.builder()
             .id(submission.getId())
             .problemId(submission.getProblem().getId())
             .problemTitle(submission.getProblem().getTitle())
-            .contestId(submission.getContest().getId())
-            .contestTitle(submission.getContest().getTitle())
+            .contestId(contest != null ? contest.getId() : null)
+            .contestTitle(contest != null ? contest.getTitle() : null)
             .language(submission.getLanguage())
             .status(submission.getStatus())
             .score(submission.getScore())

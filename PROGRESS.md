@@ -452,6 +452,59 @@ claim in the request and validating the fix against real usage, not just synthet
 `GET /api/users/me`), built on `SubmissionRepository.findByContestIdAndStatus` from Phase 3
 and the participant/submission data this phase now produces.
 
+**Later addition (post-Phase 14): practice-mode submissions.** `contestId` on
+`SubmissionRequest` is now optional — omit it (or send `null`) to submit a solution to any
+problem directly, independent of any contest. Investigated first, as asked, before changing
+anything: `problemsSolved` (`UserService`) was **already** contest-agnostic —
+`findByUserId` has no contest filter at all — so it needed zero code changes and now correctly
+counts practice submissions for free (added a test proving this explicitly rather than leaving
+it implicit). `LeaderboardService` and `GET /api/submissions/my` were also already safe:
+leaderboard only ever queries `findByContestIdAndStatus(contestId, ...)`, which structurally
+can never match a null-contest row, so practice submissions correctly never leak onto a
+contest leaderboard.
+
+What actually needed to change: `Submission.contest` (`@JoinColumn`) widened from
+`nullable = false` to nullable, and `SubmissionService.submit()` restructured so the three
+contest-specific checks (joined / ACTIVE / belongs-to-contest) only run `if (contest != null)`
+— the contest-lookup-first, then-problem-lookup ordering from the original guide is preserved
+exactly when a `contestId` is given, so existing contest-submission behavior is byte-for-byte
+unchanged. `toResponse()` guarded against a null `submission.getContest()` (would have NPE'd
+otherwise — `contestId`/`contestTitle` are already nullable `Long`/`String` on
+`SubmissionResponse`, so no DTO shape change needed there, just null-safety in the mapper).
+
+Found and fixed a real gap while verifying live: **Hibernate's `ddl-auto=update` did not
+relax the existing `NOT NULL` constraint on the `contest_id` column** — confirmed via
+`DESCRIBE submissions` after boot, no `alter table` statement for it appeared in the log at
+all (unlike the type-change `modify column` statements seen throughout this project).
+Hibernate's schema-update is conservative about *loosening* constraints, not just adding them.
+Fixed with a one-time manual `ALTER TABLE submissions MODIFY COLUMN contest_id BIGINT NULL;`
+— without it, a practice submission would have failed at the database layer with a raw 500,
+never reaching the clean JPA-level null handling built above.
+
+2 new `SubmissionServiceTest` cases (practice submission succeeds and scores correctly with
+none of the three contest-specific repository calls ever invoked; practice submission to a
+nonexistent problem still 404s) and 1 new `UserServiceTest` case (explicit confirmation
+`problemsSolved` counts a contest-less ACCEPTED submission). Verified live: submission with no
+`contestId` field and with an explicit `"contestId": null` both work identically (correct
+Jackson behavior for a non-`@NotNull` object field); `GET /api/submissions/my` and
+`GET /api/users/me` both reflect the practice submission correctly; full contest-submission
+regression (not-joined rejection, successful submission with `contestId`/`contestTitle`
+populated, leaderboard unaffected/not inflated by practice submissions) all unchanged. Full
+`mvnw test` suite green (47 tests).
+
+**Confirmed request/response shape for a practice (no-contest) submission:**
+```json
+// POST /api/submissions - request (contestId omitted)
+{ "problemId": 21, "language": "java", "sourceCode": "...", "status": "ACCEPTED" }
+// 201 response
+{
+  "id": 22, "problemId": 21, "problemTitle": "Practice Problem",
+  "contestId": null, "contestTitle": null,
+  "language": "java", "status": "ACCEPTED", "score": 300,
+  "submittedAt": "2026-08-30T15:19:58.582204"
+}
+```
+
 ---
 
 ## Phase 12: Leaderboard, Profile & Rating

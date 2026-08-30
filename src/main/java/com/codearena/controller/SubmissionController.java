@@ -34,9 +34,11 @@ public class SubmissionController {
 
     @Operation(
         summary = "Submit a solution",
-        description = "Validation order: contest exists, problem exists, caller has joined the contest, "
-            + "contest is ACTIVE, problem belongs to the contest. Score is computed by ScoreService "
-            + "from the submitted status and the problem's difficulty.",
+        description = "contestId is optional - omit it for a practice submission not tied to any "
+            + "contest. When present, validation order is: contest exists, problem exists, caller "
+            + "has joined the contest, contest is ACTIVE, problem belongs to the contest. When "
+            + "absent, only \"problem exists\" applies. Score is computed by ScoreService from the "
+            + "submitted status and the problem's difficulty either way.",
         tags = {"Submissions"},
         responses = {
             @ApiResponse(responseCode = "201", description = "Submission recorded and scored",
@@ -46,7 +48,8 @@ public class SubmissionController {
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "Missing/invalid token",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "404", description = "No contest or no problem with that id",
+            @ApiResponse(responseCode = "404", description = "No problem with that id, or (if contestId was given) "
+                + "no contest with that id",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
         }
     )

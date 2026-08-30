@@ -18,7 +18,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class SubmissionRequest {
 
-    @NotNull
+    /** Omit for a practice submission (not tied to any contest). */
     private Long contestId;
 
     @NotNull

@@ -41,8 +41,9 @@ public class Submission {
     @JoinColumn(name = "problem_id", nullable = false)
     private Problem problem;
 
+    /** Null for a practice submission - not tied to any contest. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contest_id", nullable = false)
+    @JoinColumn(name = "contest_id", nullable = true)
     private Contest contest;
 
     @Column(nullable = false)

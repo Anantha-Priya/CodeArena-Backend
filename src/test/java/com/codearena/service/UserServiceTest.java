@@ -54,4 +54,22 @@ class UserServiceTest {
         assertThat(response.getContestsJoined()).isEqualTo(3);
     }
 
+    @Test
+    void problemsSolvedCountsPracticeSubmissionsWithNoContest() {
+        UserService service = new UserService(userRepository, submissionRepository, contestParticipantRepository);
+        User user = User.builder().id(1L).username("bob").role(Role.USER).rating(0).build();
+        Problem practiceProblem = Problem.builder().id(30L).build();
+
+        when(userRepository.findByEmail("bob@codearena.com")).thenReturn(Optional.of(user));
+        // .contest() intentionally left unset - a practice submission, not tied to any contest.
+        when(submissionRepository.findByUserId(1L)).thenReturn(List.of(
+            Submission.builder().problem(practiceProblem).status(SubmissionStatus.ACCEPTED).build()
+        ));
+        when(contestParticipantRepository.countByUserId(1L)).thenReturn(0L);
+
+        UserProfileResponse response = service.getMyProfile("bob@codearena.com");
+
+        assertThat(response.getProblemsSolved()).isEqualTo(1);
+    }
+
 }
