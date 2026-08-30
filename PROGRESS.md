@@ -575,6 +575,35 @@ shape:
 {"username": "alice", "role": "ADMIN", "rating": 60, "problemsSolved": 3, "contestsJoined": 2}
 ```
 
+**Later addition (post-Phase 14): `GET /api/users` (admin-only "Coders" list).** For an
+admin dashboard showing every user's stats. `UserService.getMyProfile` refactored into a
+shared private `buildProfile(User)` so `getAllUsers()` reuses the *exact* same
+problemsSolved/contestsJoined computation per user, not a reimplementation — the whole point
+of the request. Same `UserProfileResponse` shape as `GET /api/users/me` (username, role,
+rating, problemsSolved, contestsJoined) in a plain array; no email/password data, since that
+DTO never carried those fields to begin with. `SecurityConfig` gets one new rule,
+`.requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")` — an **exact** path match
+(not `/api/users/**`), specifically so it can't also catch `/api/users/me`; verified live that
+`/me` is completely unaffected by the new rule.
+
+New [UserControllerIntegrationTest.java](src/test/java/com/codearena/controller/UserControllerIntegrationTest.java)
+(this project's first controller-level test, and first use of `@SpringBootTest`/MockMvc
+outside `security/`) — the 403 is enforced declaratively in `SecurityConfig`, not application
+code, so it's tested at the real HTTP layer rather than mocked at the service layer, same
+approach as `JwtAuthenticationIntegrationTest`. Covers: non-admin → 403; admin → 200 with the
+correct per-user fields (scoped via JSONPath filter so it holds regardless of how many other
+real users already exist in the dev DB) and no `password`/`email` keys present. Verified live
+end-to-end against the real (fairly populous — 20+ real users accumulated from testing across
+this whole project) `users` table: 403/401/200 all correct, `/me` unaffected, Swagger schema
+correct.
+
+**Flagged, not acted on (kept simple per the request):** `getAllUsers()` is O(1 + 2N) queries
+for N users — one `findAll`, then one submissions lookup and one participant count per user
+(classic N+1). Harmless at today's scale (tens of users) but worth revisiting with a single
+batched/aggregate query (e.g. a `GROUP BY user_id` count query for each stat) if the user base
+ever grows enough for this endpoint's latency to matter. No pagination added either, for the
+same "not needed yet" reason — flagged here instead of guessed at.
+
 ---
 
 ## Phase 13: API Documentation + Testing

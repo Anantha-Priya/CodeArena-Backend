@@ -57,6 +57,8 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(PUBLIC_PATHS).permitAll()
+                // Exact path, not "/api/users/**" - must not also catch /api/users/me.
+                .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/problems/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/problems/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/problems/**").hasRole("ADMIN")
