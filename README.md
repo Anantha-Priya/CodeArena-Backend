@@ -109,6 +109,42 @@ Run the test suite:
   API has no admin-creation endpoint, so promote the registered admin user directly in MySQL
   (`UPDATE users SET role='ADMIN' WHERE email=...`) before running the admin-only requests.
 
+## Deployment
+
+Multi-stage `Dockerfile` at the repo root — a Maven-Wrapper build stage (Java 21 JDK) produces
+`codearena-0.1.0.jar`, copied into a slim Java 21 JRE runtime stage. All production
+configuration is environment-variable driven; nothing production-specific is hardcoded or
+committed.
+
+```bash
+docker build -t codearena .
+docker run -p 8080:8080 \
+  -e DATASOURCE_URL="jdbc:mysql://<host>:3306/codearena_db" \
+  -e DB_USERNAME="..." \
+  -e DB_PASSWORD="..." \
+  -e JWT_SECRET="$(openssl rand -base64 64)" \
+  -e ALLOWED_ORIGIN="https://your-frontend.example.com" \
+  codearena
+```
+
+### Required production environment variables
+
+| Variable | Required in production? | Local-dev fallback | Purpose |
+|---|---|---|---|
+| `PORT` | No | `8080` | Port Spring Boot listens on — most PaaS platforms (Render, etc.) inject this at runtime; don't set it manually there |
+| `DATASOURCE_URL` | **Yes** | from `application-local.properties` | JDBC URL for the production MySQL instance |
+| `DB_USERNAME` | **Yes** | from `application-local.properties` | Database username |
+| `DB_PASSWORD` | **Yes** | from `application-local.properties` | Database password |
+| `JWT_SECRET` | **Yes** | committed placeholder value | Base64 HMAC-SHA key that signs every JWT — must be a real, private secret in production. Never rely on the placeholder outside local dev |
+| `ALLOWED_ORIGIN` | No | `http://localhost:5173`, `http://127.0.0.1:5173` | Comma-separated CORS origin(s) to allow in addition to the local-dev defaults (e.g. your deployed frontend's URL) — additive, doesn't replace them |
+
+Locally, `DATASOURCE_URL`/`DB_USERNAME`/`DB_PASSWORD` don't need to be set at all — the `local`
+Spring profile (active by default) loads real values from your own gitignored
+`application-local.properties` instead. That file is never copied into the Docker image
+(also excluded via `.dockerignore`), so in production these three are genuinely required —
+the app fails fast at boot with a clear error if one is missing, rather than silently falling
+back to something wrong.
+
 ## API reference
 
 All endpoints are under `/api`. Endpoints marked **admin** require `ROLE_ADMIN`; everything

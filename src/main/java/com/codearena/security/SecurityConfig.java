@@ -1,6 +1,7 @@
 package com.codearena.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -40,6 +42,13 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
+
+    // Not part of the Lombok-generated constructor on purpose: @Value on a field only works
+    // with field injection, not constructor injection (Lombok wouldn't carry the annotation
+    // onto the generated constructor's parameter). Spring injects this separately, after
+    // construction, alongside the final fields above.
+    @Value("${ALLOWED_ORIGIN:}")
+    private String allowedOriginsProperty;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -94,14 +103,27 @@ public class SecurityConfig {
     }
 
     /**
-     * Local frontend dev server only (Vite's default port, both loopback forms) - the
-     * CodeArena-Frontend project. Nothing else changes: this only affects preflight/CORS
-     * header handling, not the authorization rules above.
+     * Local frontend dev server (Vite's default port, both loopback forms) - the
+     * CodeArena-Frontend project - is always allowed, unconditionally. ALLOWED_ORIGIN adds
+     * production origin(s) on top of that without a code change: comma-separated, e.g.
+     * "https://codearena-frontend.example.com,https://staging.example.com". Unset/blank in
+     * local dev leaves behavior exactly as before. Nothing else changes: this only affects
+     * preflight/CORS header handling, not the authorization rules above.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        List<String> allowedOrigins = new ArrayList<>(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        if (allowedOriginsProperty != null && !allowedOriginsProperty.isBlank()) {
+            for (String origin : allowedOriginsProperty.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    allowedOrigins.add(trimmed);
+                }
+            }
+        }
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 

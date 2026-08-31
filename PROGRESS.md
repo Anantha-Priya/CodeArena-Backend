@@ -718,3 +718,66 @@ health check).
   reach the authorization filter, so no extra rule was needed to keep the change minimal.
 - `allowCredentials` left at its default (`false`) — the app uses a Bearer token in a header,
   not cookies, so browsers don't need credentialed CORS mode for this to work.
+
+---
+
+## Post-Phase 14: Production deployment support
+
+Not one of the guide's 14 phases. Added to actually deploy CodeArena somewhere real (Render)
+instead of only ever running it locally — this project's first look past `localhost`.
+
+**Built:**
+- [Dockerfile](Dockerfile) — multi-stage: a `eclipse-temurin:21-jdk` build stage runs
+  `./mvnw clean package` (dependency resolution cached in its own layer, ahead of copying
+  `src/`), producing `codearena-0.1.0.jar`; a slim `eclipse-temurin:21-jre-alpine` runtime
+  stage just copies that jar and runs it. `chmod +x mvnw` before use — the wrapper script
+  isn't reliably executable after a checkout on this project's Windows dev machine.
+  `EXPOSE 8080` is documentation only; the app actually binds to whatever `PORT` is at
+  runtime. New [.dockerignore](.dockerignore) alongside it (`target/`, `.git/`, IDE files,
+  and — explicitly — `application-local.properties`, so a local secret can never end up
+  baked into an image even by accident).
+- [application.properties](src/main/resources/application.properties) —
+  `server.port=${PORT:8080}`; `spring.datasource.url`/`username`/`password` added with
+  **no fallback default** (unlike everything else in this file) — a real secret must never
+  sit in a tracked file, so these are only ever satisfied by
+  `application-local.properties` locally (gitignored, higher precedence, overrides these
+  placeholders entirely) or `DATASOURCE_URL`/`DB_USERNAME`/`DB_PASSWORD` in production (no
+  such file in the image, so the env vars are what resolve them; a missing one fails boot
+  fast and loudly, which is what we want); `jwt.secret` gets the same `${JWT_SECRET:<existing
+  placeholder>}` treatment — keeps the committed placeholder as the local-dev fallback,
+  requires a real one via env var otherwise. `application-local.properties` and its
+  `.example` template both lost their now-redundant `driver-class-name` line (that's
+  universal, moved into the base file).
+- [SecurityConfig.java](src/main/java/com/codearena/security/SecurityConfig.java) —
+  `corsConfigurationSource()` now reads an `ALLOWED_ORIGIN` env var (comma-separated) and
+  appends each entry to the existing `localhost:5173`/`127.0.0.1:5173` defaults, rather than
+  replacing them — unset/blank changes nothing. Injected via a plain `@Value`-annotated field,
+  deliberately *not* folded into the class's Lombok `@RequiredArgsConstructor`: `@Value` on a
+  field only works with field injection, and Lombok wouldn't carry the annotation onto its
+  generated constructor's parameter if this were made a `final` constructor-injected field
+  instead — Spring populates it separately, after construction, which works fine alongside
+  the existing constructor-injected fields.
+- [README.md](README.md) — new **Deployment** section: `docker build`/`docker run` example
+  and a table of every production env var (required/optional, local-dev fallback, purpose).
+
+**Decisions/deviations:**
+- No Docker available in this environment to literally build the image — verified everything
+  Docker-adjacent that *could* be verified without it instead: built the jar with the exact
+  same Maven command the Dockerfile's build stage runs
+  (`./mvnw clean package -DskipTests`) and confirmed the artifact is named exactly
+  `codearena-0.1.0.jar`, matching the `COPY` line precisely.
+- Verified live, not just read over: booted the app with **no** env vars set at all (confirmed
+  empty first) — MySQL connected via the local profile, port defaulted to 8080, CORS defaults
+  intact, register/login worked (JWT placeholder fallback signing correctly), full `mvnw test`
+  suite green (49 tests, no regressions). Then, since the task only asked for the no-env-vars
+  case but the override path is just as easy to get wrong, also booted a second instance with
+  `PORT=9090` and `ALLOWED_ORIGIN="https://prod.example.com, https://staging.example.com"` set
+  — confirmed Tomcat bound to 9090, both new origins were allowed, the local-dev origin was
+  *still* allowed (additive, not replaced), and an unlisted origin was still rejected.
+- `spring.datasource.*` getting no fallback default (unlike `jwt.secret`, which keeps one) is
+  a deliberate asymmetry: a wrong/placeholder JWT secret just means tokens signed with it
+  aren't valid elsewhere — annoying, not dangerous. A wrong DB fallback would mean either
+  silently pointing production at a local database that doesn't exist there, or — worse —
+  needing a fake "placeholder" password sitting in a tracked file, which is exactly the
+  mistake `application-local.properties` was created back in Phase 5 to avoid. Failing loudly
+  at boot is the correct failure mode here, not a quieter fallback.
