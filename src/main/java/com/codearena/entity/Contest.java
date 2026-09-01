@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -35,10 +36,10 @@ public class Contest {
     private String description;
 
     @Column(name = "start_time", nullable = false)
-    private LocalDateTime startTime;
+    private Instant startTime;
 
     @Column(name = "end_time", nullable = false)
-    private LocalDateTime endTime;
+    private Instant endTime;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -49,9 +50,15 @@ public class Contest {
      * shared by the status endpoint (Phase 9), contest-join timing checks (Phase 10), and
      * submission validation (Phase 11), so it lives on the entity rather than duplicated
      * per-service.
+     *
+     * Uses Instant.now(), not LocalDateTime.now() - a LocalDateTime has no timezone, so
+     * comparing one naive clock (the server's JVM default zone) against another naive value
+     * (start_time/end_time, entered in whatever zone the admin was in) is only correct by
+     * coincidence when the two happen to match. Instant is a single point on the UTC
+     * timeline; there's no second zone left to disagree with.
      */
     public ContestStatus getStatus() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         if (now.isBefore(startTime)) {
             return ContestStatus.UPCOMING;
         } else if (now.isBefore(endTime)) {

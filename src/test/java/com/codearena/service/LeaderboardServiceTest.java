@@ -17,7 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,10 +61,14 @@ class LeaderboardServiceTest {
         carol = User.builder().id(3L).username("carol").rating(0).build();
         dave = User.builder().id(4L).username("dave").rating(0).build();
         activeContest = Contest.builder()
-            .id(1L).startTime(LocalDateTime.now().minusMinutes(1)).endTime(LocalDateTime.now().plusHours(1))
+            .id(1L)
+            .startTime(Instant.now().minus(1, ChronoUnit.MINUTES))
+            .endTime(Instant.now().plus(1, ChronoUnit.HOURS))
             .build();
         endedContest = Contest.builder()
-            .id(2L).startTime(LocalDateTime.now().minusHours(2)).endTime(LocalDateTime.now().minusHours(1))
+            .id(2L)
+            .startTime(Instant.now().minus(2, ChronoUnit.HOURS))
+            .endTime(Instant.now().minus(1, ChronoUnit.HOURS))
             .build();
     }
 

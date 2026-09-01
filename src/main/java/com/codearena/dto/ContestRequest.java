@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -22,10 +22,11 @@ public class ContestRequest {
     @NotBlank
     private String description;
 
+    /** ISO-8601 instant, e.g. "2026-01-01T04:30:00Z" - not a naive local time. */
     @NotNull
-    private LocalDateTime startTime;
+    private Instant startTime;
 
     @NotNull
-    private LocalDateTime endTime;
+    private Instant endTime;
 
 }

@@ -781,3 +781,69 @@ instead of only ever running it locally — this project's first look past `loca
   needing a fake "placeholder" password sitting in a tracked file, which is exactly the
   mistake `application-local.properties` was created back in Phase 5 to avoid. Failing loudly
   at boot is the correct failure mode here, not a quieter fallback.
+
+---
+
+## Post-Phase 14: Contest status timezone bug fix (LocalDateTime → Instant)
+
+Not one of the guide's 14 phases. Bug report: `Contest.getStatus()` and
+`ContestService.getStatus()` both called `LocalDateTime.now()` to compare against
+`startTime`/`endTime`, which were also stored as naive `LocalDateTime` — no timezone at all.
+The server runs in UTC while contest times were entered in the admin's local timezone (IST,
+UTC+5:30), so the comparison was off by exactly that offset: a contest that had genuinely
+started could still read `UPCOMING`, with a ~5.5 hour phantom countdown.
+
+**Built:**
+- [Contest.java](src/main/java/com/codearena/entity/Contest.java) — `startTime`/`endTime`
+  changed from `LocalDateTime` to `Instant`; `getStatus()` rewritten to compare against
+  `Instant.now()` instead of `LocalDateTime.now()`. `createdAt` (an unrelated audit
+  timestamp) deliberately left as `LocalDateTime`.
+- [ContestRequest.java](src/main/java/com/codearena/dto/ContestRequest.java) /
+  [ContestResponse.java](src/main/java/com/codearena/dto/ContestResponse.java) —
+  `startTime`/`endTime` changed to `Instant` to match; `ContestResponse.createdAt` stays
+  `LocalDateTime`, same reasoning as above.
+  [EndTimeAfterStartTimeValidator.java](src/main/java/com/codearena/dto/EndTimeAfterStartTimeValidator.java)
+  needed no change — `Instant` implements `.isAfter()` identically to `LocalDateTime`.
+- [ContestService.java](src/main/java/com/codearena/service/ContestService.java) — the
+  second `LocalDateTime.now()` call (in `getStatus()`, used to compute `remainingSeconds`)
+  changed to `Instant.now()`. `Duration.between(...)` needed no change — it accepts any
+  `Temporal`.
+- `application-local.properties` and its `.example` template — added `&serverTimezone=UTC`
+  to the datasource URL. `ddl-auto=update` did **not** alter the existing `datetime(6)`
+  column when the field type changed (confirmed via `DESCRIBE contests` after boot — same
+  as an earlier Phase where it also failed to relax a `NOT NULL` constraint automatically),
+  so correctness now depends on the JDBC driver converting `Instant` to/from that column
+  consistently. Pinning the connection's server timezone to UTC removes any ambiguity there.
+- Updated every test that constructed a `Contest` with `LocalDateTime` start/end times
+  ([ContestTest.java](src/test/java/com/codearena/entity/ContestTest.java),
+  [ContestRequestValidationTest.java](src/test/java/com/codearena/dto/ContestRequestValidationTest.java),
+  [ContestParticipantServiceTest.java](src/test/java/com/codearena/service/ContestParticipantServiceTest.java),
+  [SubmissionServiceTest.java](src/test/java/com/codearena/service/SubmissionServiceTest.java),
+  [LeaderboardServiceTest.java](src/test/java/com/codearena/service/LeaderboardServiceTest.java))
+  to use `Instant`/`ChronoUnit` instead. Added a new regression test,
+  `statusIsTheSameRegardlessOfJvmDefaultTimeZone`, that builds one contest window and asserts
+  `getStatus()` returns the identical result under `UTC`, `Asia/Kolkata`, and
+  `America/Los_Angeles` JVM default timezones — this is the direct test for the bug that was
+  reported (`ContestServiceTest.java` wasn't touched; it never referenced time fields).
+- [codearena.postman_collection.json](codearena.postman_collection.json) — the three
+  `toLocalIso(date)` pre-request-script helpers (Create Contest - Active/Upcoming/Ended) that
+  built naive local-time strings were replaced with plain `Date.toISOString()` calls (already
+  UTC, already `Z`-suffixed); the two hardcoded naive-format request bodies (Create Contest -
+  Non-Admin Blocked, Create Contest - Invalid) got an explicit `Z` appended to their literal
+  `startTime`/`endTime` values.
+- [CodeArena-Frontend/API_REFERENCE.md](../CodeArena-Frontend/API_REFERENCE.md) — rewrote the
+  section documenting the old naive `YYYY-MM-DDTHH:mm:ss` format (which explicitly told
+  frontend code to *strip* the `Z` suffix before sending) to describe the new `Instant`/UTC
+  format instead, where a `Date.toISOString()` string is sent as-is.
+
+**Decisions/deviations:**
+- Confirmed live, in the exact conditions the bug report described: with the server running
+  in IST (`+05:30`, per boot-log timestamps), created a contest using genuine UTC `Instant`
+  strings; `GET /api/contests/{id}/status` correctly reported `ACTIVE` instead of the old
+  buggy `UPCOMING`-with-offset behavior, and the raw stored DB value matched the UTC input
+  exactly with no drift. Also re-ran the full three-state (`UPCOMING`/`ACTIVE`/`ENDED`)
+  regression, the join-flow regression, and `EndTimeAfterStartTime` validation live — all
+  correct. An old naive-format request body (no `Z`) now cleanly fails with 400, the normal
+  Spring behavior for any type-mismatched field — not a new failure mode.
+  `README.md` had no `startTime`/`endTime` examples to update.
+- Full `mvnw test` suite green (50 tests, no regressions) after all test-fixture updates.

@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -77,7 +77,7 @@ public class ContestService {
     public ContestStatusResponse getStatus(Long id) {
         Contest contest = findByIdOrThrow(id);
         ContestStatus status = contest.getStatus();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         long remainingSeconds = switch (status) {
             case UPCOMING -> Duration.between(now, contest.getStartTime()).getSeconds();

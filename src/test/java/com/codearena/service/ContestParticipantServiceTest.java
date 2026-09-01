@@ -16,7 +16,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,8 +62,8 @@ class ContestParticipantServiceTest {
     void joiningAnEndedContestIsRejected() {
         Contest ended = Contest.builder()
             .id(1L)
-            .startTime(LocalDateTime.now().minusHours(2))
-            .endTime(LocalDateTime.now().minusHours(1))
+            .startTime(Instant.now().minus(2, ChronoUnit.HOURS))
+            .endTime(Instant.now().minus(1, ChronoUnit.HOURS))
             .build();
         when(contestRepository.findById(1L)).thenReturn(Optional.of(ended));
 
@@ -76,8 +77,8 @@ class ContestParticipantServiceTest {
     void joiningTwiceIsRejectedWithDuplicate() {
         Contest active = Contest.builder()
             .id(1L)
-            .startTime(LocalDateTime.now().minusMinutes(1))
-            .endTime(LocalDateTime.now().plusHours(1))
+            .startTime(Instant.now().minus(1, ChronoUnit.MINUTES))
+            .endTime(Instant.now().plus(1, ChronoUnit.HOURS))
             .build();
         when(contestRepository.findById(1L)).thenReturn(Optional.of(active));
         when(userRepository.findByEmail("user@codearena.com")).thenReturn(Optional.of(user));
@@ -93,8 +94,8 @@ class ContestParticipantServiceTest {
     void firstJoinOnAnActiveContestSucceeds() {
         Contest active = Contest.builder()
             .id(1L)
-            .startTime(LocalDateTime.now().minusMinutes(1))
-            .endTime(LocalDateTime.now().plusHours(1))
+            .startTime(Instant.now().minus(1, ChronoUnit.MINUTES))
+            .endTime(Instant.now().plus(1, ChronoUnit.HOURS))
             .build();
         when(contestRepository.findById(1L)).thenReturn(Optional.of(active));
         when(userRepository.findByEmail("user@codearena.com")).thenReturn(Optional.of(user));
@@ -112,8 +113,8 @@ class ContestParticipantServiceTest {
     void joiningAnUpcomingContestSucceeds() {
         Contest upcoming = Contest.builder()
             .id(1L)
-            .startTime(LocalDateTime.now().plusHours(1))
-            .endTime(LocalDateTime.now().plusHours(2))
+            .startTime(Instant.now().plus(1, ChronoUnit.HOURS))
+            .endTime(Instant.now().plus(2, ChronoUnit.HOURS))
             .build();
         when(contestRepository.findById(1L)).thenReturn(Optional.of(upcoming));
         when(userRepository.findByEmail("user@codearena.com")).thenReturn(Optional.of(user));

@@ -435,13 +435,9 @@
             {
               "listen": "prerequest",
               "script": { "type": "text/javascript", "exec": [
-                "function toLocalIso(date) {",
-                "    const pad = (n) => String(n).padStart(2, '0');",
-                "    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;",
-                "}",
                 "const now = new Date();",
-                "pm.collectionVariables.set('activeStart', toLocalIso(new Date(now.getTime() - 60 * 1000)));",
-                "pm.collectionVariables.set('activeEnd', toLocalIso(new Date(now.getTime() + 60 * 60 * 1000)));"
+                "pm.collectionVariables.set('activeStart', new Date(now.getTime() - 60 * 1000).toISOString());",
+                "pm.collectionVariables.set('activeEnd', new Date(now.getTime() + 60 * 60 * 1000).toISOString());"
               ]}
             },
             {
@@ -473,13 +469,9 @@
             {
               "listen": "prerequest",
               "script": { "type": "text/javascript", "exec": [
-                "function toLocalIso(date) {",
-                "    const pad = (n) => String(n).padStart(2, '0');",
-                "    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;",
-                "}",
                 "const now = new Date();",
-                "pm.collectionVariables.set('upcomingStart', toLocalIso(new Date(now.getTime() + 60 * 60 * 1000)));",
-                "pm.collectionVariables.set('upcomingEnd', toLocalIso(new Date(now.getTime() + 2 * 60 * 60 * 1000)));"
+                "pm.collectionVariables.set('upcomingStart', new Date(now.getTime() + 60 * 60 * 1000).toISOString());",
+                "pm.collectionVariables.set('upcomingEnd', new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString());"
               ]}
             },
             {
@@ -511,13 +503,9 @@
             {
               "listen": "prerequest",
               "script": { "type": "text/javascript", "exec": [
-                "function toLocalIso(date) {",
-                "    const pad = (n) => String(n).padStart(2, '0');",
-                "    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;",
-                "}",
                 "const now = new Date();",
-                "pm.collectionVariables.set('endedStart', toLocalIso(new Date(now.getTime() - 2 * 60 * 60 * 1000)));",
-                "pm.collectionVariables.set('endedEnd', toLocalIso(new Date(now.getTime() - 60 * 60 * 1000)));"
+                "pm.collectionVariables.set('endedStart', new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString());",
+                "pm.collectionVariables.set('endedEnd', new Date(now.getTime() - 60 * 60 * 1000).toISOString());"
               ]}
             },
             {
@@ -542,7 +530,7 @@
             "url": "{{baseUrl}}/api/contests",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Should Fail\",\n  \"description\": \"d\",\n  \"startTime\": \"2027-01-01T10:00:00\",\n  \"endTime\": \"2027-01-01T12:00:00\"\n}"
+              "raw": "{\n  \"title\": \"Should Fail\",\n  \"description\": \"d\",\n  \"startTime\": \"2027-01-01T10:00:00Z\",\n  \"endTime\": \"2027-01-01T12:00:00Z\"\n}"
             }
           },
           "event": [{
@@ -565,7 +553,7 @@
             "url": "{{baseUrl}}/api/contests",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Bad Contest\",\n  \"description\": \"d\",\n  \"startTime\": \"2027-01-01T12:00:00\",\n  \"endTime\": \"2027-01-01T10:00:00\"\n}"
+              "raw": "{\n  \"title\": \"Bad Contest\",\n  \"description\": \"d\",\n  \"startTime\": \"2027-01-01T12:00:00Z\",\n  \"endTime\": \"2027-01-01T10:00:00Z\"\n}"
             }
           },
           "event": [{

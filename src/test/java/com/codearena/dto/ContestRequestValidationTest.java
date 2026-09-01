@@ -5,7 +5,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,8 +23,8 @@ class ContestRequestValidationTest {
         ContestRequest request = new ContestRequest(
             "Weekly Contest",
             "description",
-            LocalDateTime.of(2026, 1, 1, 12, 0),
-            LocalDateTime.of(2026, 1, 1, 10, 0)
+            Instant.parse("2026-01-01T12:00:00Z"),
+            Instant.parse("2026-01-01T10:00:00Z")
         );
 
         Set<ConstraintViolation<ContestRequest>> violations = validator.validate(request);
@@ -38,8 +38,8 @@ class ContestRequestValidationTest {
         ContestRequest request = new ContestRequest(
             "Weekly Contest",
             "description",
-            LocalDateTime.of(2026, 1, 1, 10, 0),
-            LocalDateTime.of(2026, 1, 1, 12, 0)
+            Instant.parse("2026-01-01T10:00:00Z"),
+            Instant.parse("2026-01-01T12:00:00Z")
         );
 
         Set<ConstraintViolation<ContestRequest>> violations = validator.validate(request);

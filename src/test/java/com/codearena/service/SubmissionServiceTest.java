@@ -23,7 +23,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,8 +68,8 @@ class SubmissionServiceTest {
         user = User.builder().id(1L).email("user@codearena.com").build();
         activeContest = Contest.builder()
             .id(10L)
-            .startTime(LocalDateTime.now().minusMinutes(1))
-            .endTime(LocalDateTime.now().plusHours(1))
+            .startTime(Instant.now().minus(1, ChronoUnit.MINUTES))
+            .endTime(Instant.now().plus(1, ChronoUnit.HOURS))
             .build();
         mediumProblem = Problem.builder().id(20L).difficulty(Difficulty.MEDIUM).build();
         request = new SubmissionRequest(10L, 20L, "java", "code", SubmissionStatus.ACCEPTED);
@@ -109,8 +110,8 @@ class SubmissionServiceTest {
     void contestNotActiveIsRejected() {
         Contest upcoming = Contest.builder()
             .id(10L)
-            .startTime(LocalDateTime.now().plusHours(1))
-            .endTime(LocalDateTime.now().plusHours(2))
+            .startTime(Instant.now().plus(1, ChronoUnit.HOURS))
+            .endTime(Instant.now().plus(2, ChronoUnit.HOURS))
             .build();
         when(contestRepository.findById(10L)).thenReturn(Optional.of(upcoming));
         when(problemRepository.findById(20L)).thenReturn(Optional.of(mediumProblem));
