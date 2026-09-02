@@ -13,6 +13,7 @@ import com.codearena.repository.ContestRepository;
 import com.codearena.repository.SubmissionRepository;
 import com.codearena.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -37,26 +38,50 @@ public class LeaderboardService {
         Contest contest = contestRepository.findById(contestId)
             .orElseThrow(() -> new ResourceNotFoundException("Contest not found: " + contestId));
 
-        List<ContestParticipant> participants = contestParticipantRepository.findByContestId(contestId);
-
-        Map<Long, Integer> scoreByUserId = submissionRepository
-            .findByContestIdAndStatus(contestId, SubmissionStatus.ACCEPTED).stream()
-            .collect(Collectors.groupingBy(
-                submission -> submission.getUser().getId(),
-                Collectors.summingInt(Submission::getScore)
-            ));
-
-        List<ContestParticipant> ranked = participants.stream()
-            .sorted(Comparator.comparingInt(
-                (ContestParticipant p) -> scoreByUserId.getOrDefault(p.getUser().getId(), 0)
-            ).reversed())
-            .toList();
+        Map<Long, Integer> scoreByUserId = scoreByUserId(contestId);
+        List<ContestParticipant> ranked = rankParticipants(contestId, scoreByUserId);
 
         if (contest.getStatus() == ContestStatus.ENDED) {
             applyRatingBonuses(ranked);
         }
 
         return buildResponse(ranked, scoreByUserId);
+    }
+
+    /**
+     * Backstop for the lazy rating bump above: getLeaderboard() only applies it to a contest
+     * someone actually views after it ends, so a contest nobody checks the leaderboard for
+     * would otherwise sit at rating 0 forever. Runs on a fixed schedule instead of a
+     * "finalize contest" event (there isn't one); applyRatingBonuses() is already idempotent
+     * per participant (guarded by ratingApplied), so repeated sweeps are safe.
+     */
+    @Scheduled(fixedRate = 60_000, initialDelay = 30_000)
+    public void applyBonusesForEndedContests() {
+        contestRepository.findAll().stream()
+            .filter(contest -> contest.getStatus() == ContestStatus.ENDED)
+            .forEach(contest -> {
+                Map<Long, Integer> scoreByUserId = scoreByUserId(contest.getId());
+                applyRatingBonuses(rankParticipants(contest.getId(), scoreByUserId));
+            });
+    }
+
+    private Map<Long, Integer> scoreByUserId(Long contestId) {
+        return submissionRepository
+            .findByContestIdAndStatus(contestId, SubmissionStatus.ACCEPTED).stream()
+            .collect(Collectors.groupingBy(
+                submission -> submission.getUser().getId(),
+                Collectors.summingInt(Submission::getScore)
+            ));
+    }
+
+    private List<ContestParticipant> rankParticipants(Long contestId, Map<Long, Integer> scoreByUserId) {
+        List<ContestParticipant> participants = contestParticipantRepository.findByContestId(contestId);
+
+        return participants.stream()
+            .sorted(Comparator.comparingInt(
+                (ContestParticipant p) -> scoreByUserId.getOrDefault(p.getUser().getId(), 0)
+            ).reversed())
+            .toList();
     }
 
     private List<LeaderboardEntryResponse> buildResponse(

@@ -179,4 +179,48 @@ class LeaderboardServiceTest {
         verify(contestParticipantRepository, never()).save(any());
     }
 
+    @Test
+    void sweepAppliesBonusesForEndedContestsNobodyHasViewed() {
+        when(contestRepository.findAll()).thenReturn(List.of(activeContest, endedContest));
+        when(contestParticipantRepository.findByContestId(2L)).thenReturn(List.of(
+            participant(alice, endedContest), participant(bob, endedContest),
+            participant(carol, endedContest), participant(dave, endedContest)
+        ));
+        when(submissionRepository.findByContestIdAndStatus(2L, SubmissionStatus.ACCEPTED)).thenReturn(List.of(
+            accepted(bob, endedContest, 300),
+            accepted(alice, endedContest, 200),
+            accepted(carol, endedContest, 100)
+            // dave: no accepted submissions -> score 0, rank 4
+        ));
+
+        service.applyBonusesForEndedContests();
+
+        // rank 1 bob, rank 2 alice, rank 3 carol: +10 +50 = 60; rank 4 dave: +10 only.
+        // activeContest is never touched.
+        assertThat(bob.getRating()).isEqualTo(60);
+        assertThat(alice.getRating()).isEqualTo(60);
+        assertThat(carol.getRating()).isEqualTo(60);
+        assertThat(dave.getRating()).isEqualTo(10);
+        verify(submissionRepository, never()).findByContestIdAndStatus(1L, SubmissionStatus.ACCEPTED);
+    }
+
+    @Test
+    void sweepSkipsParticipantsAlreadyBonused() {
+        ContestParticipant aliceParticipation = participant(alice, endedContest);
+        aliceParticipation.setRatingApplied(true);
+        alice.setRating(60);
+
+        when(contestRepository.findAll()).thenReturn(List.of(endedContest));
+        when(contestParticipantRepository.findByContestId(2L)).thenReturn(List.of(aliceParticipation));
+        when(submissionRepository.findByContestIdAndStatus(2L, SubmissionStatus.ACCEPTED)).thenReturn(List.of(
+            accepted(alice, endedContest, 200)
+        ));
+
+        service.applyBonusesForEndedContests();
+
+        assertThat(alice.getRating()).isEqualTo(60);
+        verify(userRepository, never()).save(any());
+        verify(contestParticipantRepository, never()).save(any());
+    }
+
 }
