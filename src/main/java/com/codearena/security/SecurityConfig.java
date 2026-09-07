@@ -76,6 +76,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/contests/*/join").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/contests/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/contests/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/contests/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

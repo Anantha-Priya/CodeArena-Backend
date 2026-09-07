@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -92,6 +93,28 @@ public class ContestController {
     }
 
     @Operation(
+        summary = "Delete a contest (admin only)",
+        description = "Also removes this contest's participants and attached-problem associations. "
+            + "Submissions already made in this contest are kept, with their contest reference "
+            + "cleared - they revert to practice submissions rather than being deleted.",
+        tags = {"Contests"},
+        responses = {
+            @ApiResponse(responseCode = "204", description = "Deleted, no response body"),
+            @ApiResponse(responseCode = "401", description = "Missing/invalid token",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not an admin",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "No contest with that id",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        }
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        contestService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
         summary = "Associate a problem with a contest (admin only)",
         tags = {"Contests"},
         responses = {
@@ -110,6 +133,28 @@ public class ContestController {
     public ResponseEntity<Void> addProblem(@PathVariable Long contestId, @PathVariable Long problemId) {
         contestService.addProblemToContest(contestId, problemId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @Operation(
+        summary = "Detach a problem from a contest (admin only)",
+        description = "Submissions already made against this problem in this contest are not "
+            + "affected - they reference the contest and problem directly, not this association.",
+        tags = {"Contests"},
+        responses = {
+            @ApiResponse(responseCode = "204", description = "Detached, no response body"),
+            @ApiResponse(responseCode = "401", description = "Missing/invalid token",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not an admin",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "No contest or no problem with that id, "
+                + "or the problem is not currently attached to this contest",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        }
+    )
+    @DeleteMapping("/{contestId}/problems/{problemId}")
+    public ResponseEntity<Void> detachProblem(@PathVariable Long contestId, @PathVariable Long problemId) {
+        contestService.detachProblemFromContest(contestId, problemId);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(

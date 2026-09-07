@@ -11,4 +11,10 @@ public interface ContestProblemRepository extends JpaRepository<ContestProblem, 
 
     List<ContestProblem> findByContestId(Long contestId);
 
+    void deleteByContestId(Long contestId);
+
+    void deleteByContestIdAndProblemId(Long contestId, Long problemId);
+
+    void deleteByProblemId(Long problemId);
+
 }

@@ -4,14 +4,18 @@ import com.codearena.dto.ProblemRequest;
 import com.codearena.dto.ProblemResponse;
 import com.codearena.entity.Difficulty;
 import com.codearena.entity.Problem;
+import com.codearena.exception.ResourceInUseException;
 import com.codearena.exception.ResourceNotFoundException;
+import com.codearena.repository.ContestProblemRepository;
 import com.codearena.repository.ProblemRepository;
+import com.codearena.repository.SubmissionRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +25,8 @@ import java.util.List;
 public class ProblemService {
 
     private final ProblemRepository problemRepository;
+    private final ContestProblemRepository contestProblemRepository;
+    private final SubmissionRepository submissionRepository;
 
     public ProblemResponse create(ProblemRequest request) {
         Problem problem = Problem.builder()
@@ -54,8 +60,26 @@ public class ProblemService {
         return toResponse(problemRepository.save(problem));
     }
 
+    /**
+     * Two tables reference problems, both NOT NULL, neither cascading: contest_problems and
+     * submissions. Unlike a contest's submissions.contest_id (nullable - "no contest" means
+     * a practice submission), submissions.problem_id has no null-out escape hatch - a
+     * submission can't exist without a problem, and cascade-deleting a user's submissions
+     * because an admin removed a problem would be real data loss. So this blocks with a 409
+     * instead: once a problem has been submitted against, it's part of someone's history and
+     * isn't deletable. A problem with no submissions but still attached to a contest is just
+     * an admin-managed association - safe to auto-detach (the admin could already do this one
+     * contest at a time via the detach endpoint) and then delete.
+     */
+    @Transactional
     public void delete(Long id) {
         Problem problem = findByIdOrThrow(id);
+
+        if (submissionRepository.existsByProblemId(id)) {
+            throw new ResourceInUseException("Cannot delete problem " + id + ": submissions exist against it");
+        }
+
+        contestProblemRepository.deleteByProblemId(id);
         problemRepository.delete(problem);
     }
 

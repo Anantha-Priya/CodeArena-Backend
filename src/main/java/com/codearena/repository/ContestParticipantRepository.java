@@ -13,4 +13,6 @@ public interface ContestParticipantRepository extends JpaRepository<ContestParti
 
     long countByUserId(Long userId);
 
+    void deleteByContestId(Long contestId);
+
 }

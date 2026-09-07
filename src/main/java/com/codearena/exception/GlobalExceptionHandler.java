@@ -25,6 +25,12 @@ public class GlobalExceptionHandler {
             .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
     }
 
+    @ExceptionHandler(ResourceInUseException.class)
+    public ResponseEntity<ErrorResponse> handleResourceInUse(ResourceInUseException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

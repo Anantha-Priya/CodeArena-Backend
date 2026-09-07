@@ -124,6 +124,8 @@ public class ProblemController {
             @ApiResponse(responseCode = "403", description = "Caller is not an admin",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "No problem with that id",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Problem has submissions and cannot be deleted",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
         }
     )

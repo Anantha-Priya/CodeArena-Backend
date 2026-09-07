@@ -8,13 +8,17 @@ import com.codearena.entity.Contest;
 import com.codearena.entity.ContestProblem;
 import com.codearena.entity.ContestStatus;
 import com.codearena.entity.Problem;
+import com.codearena.entity.Submission;
 import com.codearena.exception.DuplicateResourceException;
 import com.codearena.exception.ResourceNotFoundException;
+import com.codearena.repository.ContestParticipantRepository;
 import com.codearena.repository.ContestProblemRepository;
 import com.codearena.repository.ContestRepository;
 import com.codearena.repository.ProblemRepository;
+import com.codearena.repository.SubmissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +31,8 @@ public class ContestService {
     private final ContestRepository contestRepository;
     private final ProblemRepository problemRepository;
     private final ContestProblemRepository contestProblemRepository;
+    private final ContestParticipantRepository contestParticipantRepository;
+    private final SubmissionRepository submissionRepository;
     private final ProblemService problemService;
 
     public ContestResponse create(ContestRequest request) {
@@ -50,6 +56,29 @@ public class ContestService {
         return toResponse(findByIdOrThrow(id));
     }
 
+    /**
+     * Three tables reference contests, none cascading: contest_problems and
+     * contest_participants both have a NOT NULL contest_id, so those rows must be removed
+     * before the contest row itself, or the delete violates their FK constraint. submissions
+     * has a nullable contest_id (a practice submission already has no contest) - those rows
+     * are kept and their contest reference cleared instead of deleted, so a user doesn't lose
+     * submission history just because an admin removed the contest it was made in. All of it
+     * runs in one transaction: either the whole cleanup commits, or none of it does.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Contest contest = findByIdOrThrow(id);
+
+        List<Submission> submissions = submissionRepository.findByContestId(id);
+        submissions.forEach(submission -> submission.setContest(null));
+        submissionRepository.saveAll(submissions);
+
+        contestProblemRepository.deleteByContestId(id);
+        contestParticipantRepository.deleteByContestId(id);
+
+        contestRepository.delete(contest);
+    }
+
     public void addProblemToContest(Long contestId, Long problemId) {
         Contest contest = findByIdOrThrow(contestId);
         Problem problem = problemRepository.findById(problemId)
@@ -63,6 +92,25 @@ public class ContestService {
             .contest(contest)
             .problem(problem)
             .build());
+    }
+
+    /**
+     * Mirrors addProblemToContest's checks in reverse: contest exists, problem exists, then
+     * the association itself exists - 404 if the problem was never attached to this contest,
+     * matching how the inverse (attaching twice) is a 409, not a silent no-op. Submissions
+     * already made against this problem/contest pair are untouched - they FK to the contest
+     * and problem directly, not to this join row, so detaching can't orphan them.
+     */
+    public void detachProblemFromContest(Long contestId, Long problemId) {
+        findByIdOrThrow(contestId);
+        if (!problemRepository.existsById(problemId)) {
+            throw new ResourceNotFoundException("Problem not found: " + problemId);
+        }
+        if (!contestProblemRepository.existsByContestIdAndProblemId(contestId, problemId)) {
+            throw new ResourceNotFoundException("Problem " + problemId + " is not attached to contest " + contestId);
+        }
+
+        contestProblemRepository.deleteByContestIdAndProblemId(contestId, problemId);
     }
 
     public List<ProblemResponse> getProblemsForContest(Long contestId) {
