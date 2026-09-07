@@ -23,9 +23,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -198,6 +200,43 @@ class ContestControllerDeleteIntegrationTest {
             .andExpect(status().isCreated());
 
         assertThat(contestProblemRepository.existsByContestIdAndProblemId(contest.getId(), problem.getId())).isTrue();
+    }
+
+    /**
+     * Deliberately suspends this test's own transaction (Propagation.NOT_SUPPORTED overrides
+     * the class-level @Transactional) so the repository calls below run with no ambient
+     * transaction to lean on - exactly like a real HTTP request. Every other test in this
+     * class runs inside the class-level @Transactional for convenient auto-rollback, which
+     * is precisely what let a missing @Transactional on detachProblemFromContest ship to
+     * production undetected: the outer test transaction quietly supplied the one the derived
+     * deleteByContestIdAndProblemId query needed. This test would have failed with that bug
+     * present (TransactionRequiredException -> 500) and is the regression guard for it.
+     * No auto-rollback here, so cleanup is manual.
+     */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void detachingAProblemSucceedsWithNoAmbientTransactionToMaskAMissingOne() throws Exception {
+        User admin = saveUser("cd-it-notx-admin", Role.ADMIN);
+        Contest contest = saveContest("cd-it-notx-contest");
+        Problem problem = saveProblem("cd-it-notx-problem");
+        contestProblemRepository.save(ContestProblem.builder().contest(contest).problem(problem).build());
+
+        try {
+            mockMvc.perform(delete("/api/contests/" + contest.getId() + "/problems/" + problem.getId())
+                    .header("Authorization", "Bearer " + tokenFor(admin, Role.ADMIN)))
+                .andExpect(status().isNoContent());
+
+            assertThat(contestProblemRepository.existsByContestIdAndProblemId(contest.getId(), problem.getId()))
+                .isFalse();
+        } finally {
+            List<ContestProblem> remaining = contestProblemRepository.findByContestId(contest.getId());
+            if (!remaining.isEmpty()) {
+                contestProblemRepository.deleteAll(remaining);
+            }
+            contestRepository.deleteById(contest.getId());
+            problemRepository.deleteById(problem.getId());
+            userRepository.deleteById(admin.getId());
+        }
     }
 
 }

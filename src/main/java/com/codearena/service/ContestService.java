@@ -100,7 +100,16 @@ public class ContestService {
      * matching how the inverse (attaching twice) is a 409, not a silent no-op. Submissions
      * already made against this problem/contest pair are untouched - they FK to the contest
      * and problem directly, not to this join row, so detaching can't orphan them.
+     *
+     * @Transactional is required here, not optional: a derived deleteBy... repository method
+     * (unlike the built-in repository.delete(entity), which SimpleJpaRepository already marks
+     * @Transactional itself) needs the calling method to supply the transaction its
+     * select-then-remove execution runs in - without one it throws TransactionRequiredException
+     * at request time. A prior version of this method omitted it and passed every local test
+     * anyway, because @Transactional at an integration test class level supplies an ambient
+     * transaction that masks exactly this bug - it only surfaced in production.
      */
+    @Transactional
     public void detachProblemFromContest(Long contestId, Long problemId) {
         findByIdOrThrow(contestId);
         if (!problemRepository.existsById(problemId)) {
