@@ -15,6 +15,7 @@ import com.codearena.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
@@ -54,7 +55,17 @@ public class LeaderboardService {
      * would otherwise sit at rating 0 forever. Runs on a fixed schedule instead of a
      * "finalize contest" event (there isn't one); applyRatingBonuses() is already idempotent
      * per participant (guarded by ratingApplied), so repeated sweeps are safe.
+     *
+     * @Transactional is required: applyRatingBonuses() below reads ContestParticipant.user,
+     * a lazy association, then calls user.getRating() on it - initializing that proxy needs
+     * an open Hibernate session. getLeaderboard() hits this same code from an HTTP request,
+     * where open-in-view (enabled by default here) keeps a session open for the whole
+     * request regardless of this method's own transactionality, which is why that path never
+     * showed this bug. A @Scheduled method has no HTTP request and therefore no open-in-view
+     * session - without its own transaction, the proxy has nothing left to initialize from
+     * and throws LazyInitializationException: "no Session", every run.
      */
+    @Transactional
     @Scheduled(fixedRate = 60_000, initialDelay = 30_000)
     public void applyBonusesForEndedContests() {
         contestRepository.findAll().stream()
